@@ -6,11 +6,23 @@ export async function POST(request) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  // Convert messages to Gemini format
-  const contents = messages.map(m => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: typeof m.content === "string" ? m.content : m.content }]
-  }));
+  // Convert messages to Gemini format, handling file attachments
+  const contents = messages.map(m => {
+    const role = m.role === "assistant" ? "model" : "user";
+
+    // If message has a file attachment
+    if (m.file) {
+      return {
+        role,
+        parts: [
+          { inline_data: { mime_type: m.file.mimeType, data: m.file.data } },
+          { text: m.content }
+        ]
+      };
+    }
+
+    return { role, parts: [{ text: m.content }] };
+  });
 
   const body = {
     system_instruction: { parts: [{ text: systemPrompt }] },
