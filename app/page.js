@@ -36,6 +36,66 @@ const TWINS = {
   }
 };
 
+async function extractTextFromFile(file) {
+  const name = file.name.toLowerCase();
+
+  // Plain text files
+  if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv")) {
+    return await file.text();
+  }
+
+  // PDF - use pdf.js from CDN
+  if (name.endsWith(".pdf")) {
+    const pdfjsLib = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+    const buffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    let text = "";
+    for (let i = 1; i <= Math.min(pdf.numPages, 50); i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(" ") + "\n\n";
+    }
+    return text || "[No se pudo extraer texto del PDF]";
+  }
+
+  // DOCX / PPTX - both are ZIP files with XML inside
+  if (name.endsWith(".docx") || name.endsWith(".pptx")) {
+    const JSZip = (await import("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js")).default
+      || window.JSZip;
+
+    if (!JSZip) {
+      // Fallback: try to read as text
+      try { return await file.text(); } catch { return "[No se pudo leer el archivo]"; }
+    }
+
+    const buffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+
+    if (name.endsWith(".docx")) {
+      const docXml = await zip.file("word/document.xml")?.async("string");
+      if (docXml) {
+        return docXml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      }
+    }
+
+    if (name.endsWith(".pptx")) {
+      let allText = "";
+      const slideFiles = Object.keys(zip.files).filter(f => f.match(/ppt\/slides\/slide\d+\.xml/)).sort();
+      for (const sf of slideFiles) {
+        const xml = await zip.files[sf].async("string");
+        const matches = xml.match(/<a:t>([^<]*)<\/a:t>/g) || [];
+        const slideText = matches.map(m => m.replace(/<\/?a:t>/g, "")).join(" ");
+        if (slideText) allText += slideText + "\n\n";
+      }
+      return allText || "[No se pudo extraer texto del PPTX]";
+    }
+  }
+
+  // Fallback
+  try { return await file.text(); } catch { return "[Formato no soportado]"; }
+}
+
 async function callTwin(systemPrompt, messages) {
   try {
     const res = await fetch("/api/sparring", {
@@ -148,44 +208,18 @@ function FileUpload({ onFileContent, fileName, onClear }) {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-  const toBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(",")[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
   const readFile = async (file) => {
     setError(null);
     setProcessing(true);
-    const name = file.name.toLowerCase();
-    const sizeMB = file.size / (1024 * 1024);
-
-    if (sizeMB > 20) {
-      setError("Archivo muy grande (máx 20MB). Intenta con uno más corto.");
-      setProcessing(false);
-      return;
-    }
-
     try {
-      if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv")) {
-        const text = await file.text();
-        onFileContent({ type: "text", text, fileName: file.name });
-      } else if (name.endsWith(".pdf")) {
-        const data = await toBase64(file);
-        onFileContent({ type: "file", data, mimeType: "application/pdf", fileName: file.name });
-      } else if (name.endsWith(".docx")) {
-        const data = await toBase64(file);
-        onFileContent({ type: "file", data, mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName: file.name });
-      } else if (name.endsWith(".pptx")) {
-        const data = await toBase64(file);
-        onFileContent({ type: "file", data, mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", fileName: file.name });
+      const text = await extractTextFromFile(file);
+      if (text && text.length > 0) {
+        onFileContent(text, file.name);
       } else {
-        const text = await file.text();
-        onFileContent({ type: "text", text, fileName: file.name });
+        setError("No se pudo extraer texto. Intenta copiar y pegar el contenido.");
       }
-    } catch {
-      setError("No se pudo leer el archivo.");
+    } catch (err) {
+      setError("Error al leer archivo. Intenta con otro formato o copia y pega el texto.");
     }
     setProcessing(false);
   };
@@ -198,7 +232,7 @@ function FileUpload({ onFileContent, fileName, onClear }) {
           onClick={() => inputRef.current?.click()}
           style={{ border: `2px dashed ${dragging ? "#2E75B6" : "#2a2a2a"}`, borderRadius: 10, padding: "28px 16px", textAlign: "center", cursor: "pointer", background: dragging ? "#2E75B610" : "#141414" }}>
           <input ref={inputRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.pptx" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f); }} />
-          {processing ? <p style={{ color: "#2E75B6", fontSize: 13, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>Procesando...</p>
+          {processing ? <p style={{ color: "#2E75B6", fontSize: 13, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>Extrayendo texto del archivo...</p>
             : <><p style={{ color: "#888", fontSize: 24, margin: "0 0 8px" }}>📄</p><p style={{ color: "#666", fontSize: 13, margin: "0 0 4px", fontFamily: "'JetBrains Mono', monospace" }}>Arrastra o haz clic</p><p style={{ color: "#444", fontSize: 11, margin: 0 }}>.pdf .docx .pptx .txt .md</p></>}
         </div>
       ) : (
@@ -222,24 +256,11 @@ export default function Home() {
   const [running, setRunning] = useState(false);
   const [inputMode, setInputMode] = useState("text");
   const [fileName, setFileName] = useState(null);
-  const [fileData, setFileData] = useState(null); // { type, data, mimeType } for binary files
   const resultsRef = useRef(null);
 
   const toggleTwin = (id) => { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); };
-  const clearFile = () => { setDeliverable(""); setFileName(null); setFileData(null); };
-  const hasContent = deliverable.trim().length > 0 || fileData !== null;
-
-  const handleFileContent = (result) => {
-    if (result.type === "text") {
-      setDeliverable(result.text);
-      setFileName(result.fileName);
-      setFileData(null);
-    } else {
-      setDeliverable(`[Archivo: ${result.fileName}]`);
-      setFileName(result.fileName);
-      setFileData({ data: result.data, mimeType: result.mimeType });
-    }
-  };
+  const clearFile = () => { setDeliverable(""); setFileName(null); };
+  const hasContent = deliverable.trim().length > 0;
 
   const runEvaluation = async () => {
     if (!hasContent || selected.length === 0) return;
@@ -251,28 +272,15 @@ export default function Home() {
     setTimeout(() => { resultsRef.current?.scrollIntoView({ behavior: "smooth" }); }, 200);
 
     const ctxText = context.trim() ? `CONTEXTO:\n${context.trim()}\n\n` : "";
+    const userText = ctxText + "ENTREGABLE A EVALUAR:\n" + deliverable.trim().slice(0, 25000);
 
     const promises = selected.map((id, i) =>
       new Promise(resolve => setTimeout(resolve, i * 1000)).then(async () => {
-        let message;
-        if (fileData) {
-          message = {
-            role: "user",
-            content: ctxText + `Evalúa el contenido del documento adjunto (${fileName}).`,
-            file: { data: fileData.data, mimeType: fileData.mimeType }
-          };
-        } else {
-          message = {
-            role: "user",
-            content: ctxText + "ENTREGABLE A EVALUAR:\n" + deliverable.trim()
-          };
-        }
-
-        const result = await callTwin(TWINS[id].prompt, [message]);
-
+        const msgs = [{ role: "user", content: userText }];
+        const result = await callTwin(TWINS[id].prompt, msgs);
         setConversations(prev => ({ ...prev, [id]: [
-          { role: "user", text: fileData ? `${ctxText}[📄 ${fileName}]` : message.content, content: message.content, file: message.file, display: false },
-          { role: "assistant", text: result, content: result }
+          { role: "user", text: fileName ? `[📄 ${fileName}]` : userText.slice(0, 200) + "...", display: false },
+          { role: "assistant", text: result }
         ]}));
         setLoading(prev => ({ ...prev, [id]: false }));
       })
@@ -283,19 +291,13 @@ export default function Home() {
 
   const handleReply = async (twinId, replyText) => {
     const conv = conversations[twinId] || [];
-    const newConv = [...conv, { role: "user", text: replyText, content: replyText }];
+    const newConv = [...conv, { role: "user", text: replyText }];
     setConversations(prev => ({ ...prev, [twinId]: newConv }));
     setLoading(prev => ({ ...prev, [twinId]: true }));
 
-    // Build API messages — include file only in the first message
-    const apiMessages = newConv.map(m => {
-      const msg = { role: m.role, content: m.content || m.text };
-      if (m.file) msg.file = m.file;
-      return msg;
-    });
-
+    const apiMessages = newConv.map(m => ({ role: m.role, content: m.text }));
     const result = await callTwin(TWINS[twinId].prompt, apiMessages);
-    setConversations(prev => ({ ...prev, [twinId]: [...prev[twinId], { role: "assistant", text: result, content: result }] }));
+    setConversations(prev => ({ ...prev, [twinId]: [...prev[twinId], { role: "assistant", text: result }] }));
     setLoading(prev => ({ ...prev, [twinId]: false }));
   };
 
@@ -338,7 +340,7 @@ export default function Home() {
             <textarea value={deliverable} onChange={e => setDeliverable(e.target.value)} placeholder="Pega tu brief, propuesta, territorio, deck..." rows={8}
               style={{ width: "100%", padding: 16, background: "#141414", border: "1px solid #222", borderRadius: 8, color: "#ccc", fontSize: 14, lineHeight: 1.6, resize: "vertical", fontFamily: "'Inter', sans-serif" }} />
           ) : (
-            <FileUpload onFileContent={handleFileContent} fileName={fileName} onClear={clearFile} />
+            <FileUpload onFileContent={(text, name) => { setDeliverable(text); setFileName(name); }} fileName={fileName} onClear={clearFile} />
           )}
         </div>
 
