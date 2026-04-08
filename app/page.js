@@ -286,7 +286,7 @@ export default function Home() {
     var userText = ctxText + "ENTREGABLE A EVALUAR:\n" + deliverable.trim().slice(0, 25000);
 
     var promises = selected.map(function(id, i) {
-      return new Promise(function(resolve) { setTimeout(resolve, i * 1000); }).then(async function() {
+      return new Promise(function(resolve) { setTimeout(resolve, i * 15000); }).then(async function() {
         var msgs = [{ role: "user", content: userText }];
         var result = await callTwin(TWINS[id].prompt, msgs);
         setConversations(function(prev) {
