@@ -1,58 +1,41 @@
 export async function POST(request) {
   const { systemPrompt, messages } = await request.json();
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  // Convert messages to Gemini format, handling file attachments
-  const contents = messages.map(m => {
-    const role = m.role === "assistant" ? "model" : "user";
-
-    // If message has a file attachment
-    if (m.file) {
-      return {
-        role,
-        parts: [
-          { inline_data: { mime_type: m.file.mimeType, data: m.file.data } },
-          { text: m.content }
-        ]
-      };
-    }
-
-    return { role, parts: [{ text: m.content }] };
-  });
-
-  const body = {
-    system_instruction: { parts: [{ text: systemPrompt }] },
-    contents,
-    generationConfig: {
-      maxOutputTokens: 4096,
-      temperature: 0.7,
-    }
-  };
+  const groqMessages = [
+    { role: "system", content: systemPrompt },
+    ...messages.map(m => ({ role: m.role, content: m.content }))
+  ];
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }
-    );
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: groqMessages,
+        max_tokens: 4096,
+        temperature: 0.7,
+      }),
+    });
 
     const data = await res.json();
 
     if (data.error) {
-      return Response.json({ error: data.error.message || "Gemini API error" }, { status: 500 });
+      return Response.json({ error: data.error.message || "Groq API error" }, { status: 500 });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join("\n") || "Sin respuesta.";
+    const text = data.choices?.[0]?.message?.content || "Sin respuesta.";
     return Response.json({ text });
 
   } catch (err) {
-    return Response.json({ error: "Error de conexión con Gemini" }, { status: 500 });
+    return Response.json({ error: "Error de conexión con Groq" }, { status: 500 });
   }
 }
