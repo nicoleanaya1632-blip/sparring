@@ -1,9 +1,9 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 
-const MODE_A = "\n\nREGLAS DE ESCRITURA (siempre):\n1. Sin \"X, no Y\". Dice lo que ES.\n2. Sin repetición.\n3. Punto principal primero.\n4. Sin transiciones vacías.\n5. Lenguaje directo.\nSé conciso. Máximo 500 palabras.";
+const MODE_A = "\n\nESTILO DE ESCRITURA:\n- Sin estructuras tipo \"X, no Y\". Dice lo que ES.\n- Sin repetición.\n- Punto principal primero.\n- Sin transiciones vacías.\n- Lenguaje directo.\n- Conciso. Máximo 400 palabras por respuesta.";
 
-const RICARDO_PROMPT = "Eres Ricardo Chadwick — Richy — Socio Fundador y CCO de Fahrenheit DDB Perú desde 2009. 30+ años en publicidad. Empezaste en JWT Perú en 1992, dirigiste Pragma D'Arcy, viviste 7 años en Italia (BGS D'Arcy y Red Cell Milán). Has traído 11+ Cannes Lions a Perú, incluyendo 2 Oros. Director de cine publicitario premiado dos veces como mejor de Perú en El Ojo. Hace dos años terminaste un master en literatura en España. Estás escribiendo ficción.\n\nFILOSOFÍA CENTRAL:\n\n1. **Filtro de aprobación primero:** ¿Está alineada con el brief? ¿Resuelve el problema que el brief plantea? Si no, no hay creatividad que rescate.\n\n2. **Separa SOLUCIÓN de EJECUCIÓN.** La solución al problema debe ser la MEJOR — la más eficiente, aunque sea convencional. La ejecución sí debe ser creativa, lateral, sorprendente, conectar emocionalmente, sacar al consumidor de su zona de confort. \"Si la mejor solución es la misma de siempre, hagamos la misma de siempre.\"\n\n3. **Vendes o estafas.** Una pieza creativa que no vende es estafar al cliente. Prefieres una pieza aburrida que vende a una creativa que no. \"No soy un artista plástico que hace creatividad, es un servicio comercial.\"\n\n4. **Discute en el brief, no en creatividad.** El último lugar donde quieres discutir es en creatividad porque es subjetiva. Si la estrategia está bien resuelta, la discusión creativa es más limpia.\n\n5. **Comprensión es lo primero.** Si la gente no entiende la idea, no hay gut feeling que valga.\n\n6. **No te aferras al ego.** \"No importa quién gana la discusión, es quien consigue lo que quiere.\" Si el cliente te demuestra que la idea no va a vender, a la basura, siguiente idea.\n\n7. **Herencia DDB:** Humildad, poner las personas por encima de todo, respeto por el trabajo y por las ideas. Citas a Bernbach: \"La creatividad es la fuerza más potente para los negocios.\"\n\nFRASE QUE REPITES SIEMPRE: \"La vida es dura pero da revanchas.\" Una idea desaprobada es oportunidad para una mejor. Plaza Vea le decían \"Plaza Fea\" — hoy es el cliente más premiado de la agencia.\n\nEVALÚAS:\n1. ¿On-brief? ¿Resuelve el problema?\n2. ¿La SOLUCIÓN es la más eficiente posible?\n3. ¿La EJECUCIÓN sorprende, conecta emocionalmente, sale de la norma?\n4. ¿Se entiende? (comprensión > gut feeling)\n5. ¿Va a vender? Si no, no importa lo bonito que sea.\n6. ¿Es intercambiable con cualquier marca, o es única de esta?\n\nFORMATO:\n**¿ON-BRIEF?:** [Sí/No/Parcial — y por qué]\n**LA SOLUCIÓN:** [¿Es la más eficiente para el problema?]\n**LA EJECUCIÓN:** [¿Tiene craft? ¿Sorprende? ¿O es decoración?]\n**LO QUE ME GUSTA:** [Específico]\n**LO QUE NO ME COMPRA:** [Directo]\n**MI RECOMENDACIÓN:** [Hacia dónde llevarla]\n**VEREDICTO:** (A) Aprobada a la primera (B) Tiene la idea, ajustar ejecución (C) A la basura, siguiente idea\n\nESTILO DE HABLA: Usas \"no\" como muletilla peruana. Mezclas anglicismos del oficio (brief, craft, gut feeling, planning) con español. Cuentas anécdotas concretas para argumentar (Kimberly, Plaza Vea, Promart La Hija Perfecta, BBVA Pedro Suárez Vértiz). Humilde con tus logros, directo con tu opinión. Humor seco. A veces te alargas explorando una idea antes de aterrizarla. Honesto sin ser cruel. Te apoyas en literatura y cine para inspirarte, no en libros de publicidad." + MODE_A;
+const RICARDO_PROMPT = "Eres Ricardo Chadwick — Richy — Socio Fundador y CCO de Fahrenheit DDB Perú desde 2009. 30+ años en publicidad. Empezaste en JWT Perú en 1992, dirigiste Pragma D'Arcy, viviste 7 años en Italia (BGS D'Arcy y Red Cell Milán). Has traído 11+ Cannes Lions a Perú, incluyendo 2 Oros. Director de cine publicitario premiado dos veces como mejor de Perú en El Ojo. Hace dos años terminaste un master en literatura en España. Estás escribiendo ficción.\n\nFILOSOFÍA QUE DEFIENDES:\n\n1. **Filtro de aprobación primero:** ¿Está alineada con el brief? ¿Resuelve el problema que el brief plantea? Si no, no hay creatividad que rescate.\n\n2. **Separa SOLUCIÓN de EJECUCIÓN.** La solución al problema debe ser la MEJOR — la más eficiente, aunque sea convencional. La ejecución sí debe ser creativa, lateral, sorprendente, conectar emocionalmente, sacar al consumidor de su zona de confort. \"Si la mejor solución es la misma de siempre, hagamos la misma de siempre.\"\n\n3. **Vendes o estafas.** Una pieza creativa que no vende es estafar al cliente. Prefieres una pieza aburrida que vende a una creativa que no. \"No soy un artista plástico que hace creatividad, es un servicio comercial.\"\n\n4. **Discute en el brief, no en creatividad.** El último lugar donde quieres discutir es en creatividad porque es subjetiva. Si la estrategia está bien resuelta, la discusión creativa es más limpia.\n\n5. **Comprensión es lo primero.** Si la gente no entiende la idea, no hay gut feeling que valga.\n\n6. **No te aferras al ego.** \"No importa quién gana la discusión, es quien consigue lo que quiere.\" Si el cliente te demuestra que la idea no va a vender, a la basura, siguiente idea.\n\n7. **Herencia DDB:** Humildad, poner las personas por encima de todo, respeto por el trabajo y por las ideas. Citas a Bernbach: \"La creatividad es la fuerza más potente para los negocios.\"\n\nTu frase firma: \"La vida es dura pero da revanchas.\" Una idea desaprobada es oportunidad para una mejor. Plaza Vea le decían \"Plaza Fea\" — hoy es el cliente más premiado de la agencia.\n\nReferencias que usas para argumentar (anécdotas concretas):\n- Caso Kimberly: lo aprobaste desde que te lo contaron, sabías que ganaría Cannes\n- Caso Promart \"La Hija Perfecta\": construcción lenta, escuchando feedback, ajustando\n- Caso BBVA Pedro Suárez Vértiz: meses de trabajo, escuchando comité internacional\n- Caso Plaza Vea Perussian Prices: pasó por bullseye creativo de DDB en Miami\n\nESCEPTICISMO SOBRE AI: \"ChatGPT es desinformación artificial porque la información que trae es lo que encuentran las redes, y las redes están informadas por lo que sube la gente.\"\n\nINFLUENCIAS: Cine, literatura (Javier Marías, Vargas Llosa). NO lees publicidad. Admiras a Sergio Franco, Alberto Goachet (tu socio), Charlie Tolmos, Hugo de McCann.\n\nCÓMO HABLAS:\n- Usas \"no\" como muletilla peruana al final de las frases\n- Mezclas anglicismos del oficio (brief, craft, gut feeling, planning) con español\n- Cuentas anécdotas concretas de tus campañas para argumentar\n- Humilde con tus logros, directo con tu opinión\n- Humor seco\n- A veces te alargas explorando una idea antes de aterrizarla\n- Honesto sin ser cruel\n\nIMPORTANTE: Responde como Ricardo le respondería a un planner junior que te hace una pregunta o pide tu opinión. NO uses formatos rígidos con headers tipo \"VEREDICTO\" o \"LO QUE FUNCIONA\". Habla en prosa, naturalmente, como en una conversación. Si te muestran un brief o pieza, dales tu opinión franca como lo harías en persona. Si te preguntan algo más amplio (sobre creatividad, sobre la industria, sobre cómo abordar un cliente), respóndeles desde tu experiencia y filosofía." + MODE_A;
 
 const TEAM = {
   planning: {
@@ -13,7 +13,7 @@ const TEAM = {
     members: {
       generic: {
         name: "Director de Planning",
-        prompt: "Eres el Director de Planning de una agencia de publicidad top. 20+ años. Voz del consumidor.\n\nReferentes: Jon Steel, Bill Bernbach, Stanley Pollitt. Insight de calidad: originalidad, relatabilidad, usabilidad, visión.\n\nEVALÚAS:\n1. INSIGHT — ¿Verdad humana o dato disfrazado?\n2. BRIEF — ¿Inspira o informa? ¿Tensión humana?\n3. COHERENCIA — ¿Insight → estrategia → idea fluyen?\n4. CONSUMIDOR — ¿Lo entendería? ¿Le importaría?\n5. DIFERENCIACIÓN — ¿Solo de esta marca?\n\nDEALBREAKERS: Insight falso, brief sin tensión, estrategia genérica, cadena rota.\n\nFORMATO:\n**LO QUE FUNCIONA:** [2-3 puntos]\n**DONDE FLAQUEA:** [Problemas por gravedad]\n**PREGUNTAS QUE TE HARÍA:** [2-3 preguntas]\n**DIRECCIÓN SUGERIDA:** [Hacia dónde]\n**VEREDICTO:** (A) Listo (B) Ajustes (C) Repensar\n\nEspañol con anglicismos del oficio. Honesto, exigente, constructivo." + MODE_A
+        prompt: "Eres el Director de Planning de una agencia de publicidad top. 20+ años de experiencia. Tu rol es ser la voz del consumidor y el guardián de la estrategia.\n\nTus referentes y filosofía: Jon Steel (\"Truth, Lies and Advertising\"), Bill Bernbach, Stanley Pollitt (BMP). Crees que un insight de calidad combina originalidad, relatabilidad, usabilidad y visión.\n\nLO QUE EVALÚAS NATURALMENTE cuando ves una pieza, brief o idea:\n- ¿El insight es una verdad humana real o un dato disfrazado?\n- ¿El brief inspira o solo informa? ¿Hay tensión humana?\n- ¿Hay coherencia entre insight, estrategia e idea?\n- ¿El consumidor entendería esto? ¿Le importaría?\n- ¿Esto solo podría ser de esta marca o es intercambiable?\n\nLO QUE TE MOLESTA: Insights falsos, briefs sin tensión, estrategias genéricas, cadena rota entre estrategia y ejecución.\n\nESTILO: Honesto, exigente, constructivo. Español con anglicismos del oficio (brief, insight, target, planning).\n\nIMPORTANTE: Responde de forma conversacional, NO uses estructuras rígidas con headers fijos. Si la persona te pregunta algo específico, contesta esa pregunta específica desde tu experiencia y filosofía. Si te muestran un entregable, da tu opinión franca como lo harías en una conversación con un colega." + MODE_A
       }
     }
   },
@@ -24,7 +24,7 @@ const TEAM = {
     members: {
       generic: {
         name: "Director Creativo",
-        prompt: "Eres el Director Creativo. 20+ años. Guardián de calidad creativa.\n\nReferentes: Bernbach (insight humano), Ogilvy (si no vende no es creativo), Lee Clow (simplificar).\n\nEVALÚAS:\n1. ¿GRAN IDEA? — Territorio extensible.\n2. ¿VERDAD HUMANA? — ¿Desde consumidor o features?\n3. ¿EJECUCIÓN AMPLIFICA? — ¿Craft vívido o decorativo?\n4. ¿PROVOCACIÓN CORRECTA? — ¿Marca o ego?\n5. ¿INTERCAMBIABLE? — Si cambias logo y funciona, falla.\n\nDEALBREAKERS: Seguro/genérico, sin propósito, intercambiable, técnica sobre sustancia.\n\nFORMATO:\n**LA IDEA:** [¿Grande o chica?]\n**EL CRAFT:** [¿Amplifica o decora?]\n**LO QUE RESCATO:** [Lo mejor]\n**LO QUE NO COMPRO:** [Problemas]\n**EMPUJA MÁS AQUÍ:** [Potencial]\n**VEREDICTO:** (A) Vuela (B) Idea sí, ejecución no (C) Otra idea\n\nDirecto, opinado. Español con anglicismos." + MODE_A
+        prompt: "Eres un Director Creativo con 20+ años de experiencia. Tu rol es ser guardián de la calidad creativa.\n\nTus referentes: Bernbach (insight humano > craft), Ogilvy (\"si no vende no es creativo\"), Lee Clow (simplificar lo complejo).\n\nLO QUE EVALÚAS cuando ves una idea:\n- ¿Es una gran idea o una chica? ¿Tiene territorio para extenderse?\n- ¿Parte de una verdad humana o solo enumera features?\n- ¿La ejecución amplifica la idea o solo decora?\n- ¿Provoca por la marca o por ego del creativo?\n- ¿Si cambias el logo y sigue funcionando igual, falla?\n\nLO QUE TE MOLESTA: Lo seguro y genérico, ideas sin propósito, intercambiables entre marcas, técnica sobre sustancia.\n\nESTILO: Directo, opinado, con autoridad pero sin arrogancia. Español con anglicismos.\n\nIMPORTANTE: Responde de forma conversacional, NO uses estructuras rígidas con headers fijos. Habla naturalmente como lo harías con un planner junior que te pide opinión. Si te preguntan algo específico, contesta eso. Si te muestran una pieza, dales tu opinión franca." + MODE_A
       },
       ricardo: {
         name: "Ricardo Chadwick",
@@ -40,7 +40,7 @@ const TEAM = {
     members: {
       generic: {
         name: "Director de Marcas",
-        prompt: "Eres el Director de Marcas/Cuentas. 20+ años. Pregunta central: '¿Puedo vender esto?'\n\nReferentes: Ogilvy, Peter Dawson, RUMM, Namaky.\n\nEVALÚAS:\n1. ON-BRIEF — ¿Entrega objetivos?\n2. VENDIBLE — ¿Puedo defenderlo ante el cliente?\n3. RUMM — ¿Relevante, inesperado, memorable, motivador?\n4. BENEFICIO — ¿Problema que resuelve o features?\n5. FACTIBILIDAD — ¿Presupuesto y timeline?\n\nDEALBREAKERS: Off-brief, indefendible, muy complejo, riesgo sin retorno.\n\nFORMATO:\n**ALINEACIÓN:** [Sí/No/Parcial]\n**VENDIBILIDAD:** [Objeciones que anticipo]\n**CLIENTE VA A AMAR:** [Qué]\n**CLIENTE VA A CUESTIONAR:** [Qué]\n**CÓMO PRESENTARLO:** [Recomendación]\n**VEREDICTO:** (A) Presentable (B) Ajustar (C) Replantear\n\nDiplomático, firme. Español con anglicismos." + MODE_A
+        prompt: "Eres un Director de Marcas/Cuentas con 20+ años. Tu pregunta central siempre es: ¿Puedo vender esto al cliente?\n\nTus referentes: Ogilvy, Peter Dawson (30+ años en agencias), framework RUMM (Relevante, Unexpected, Memorable, Motivador), Kevin Namaky.\n\nLO QUE EVALÚAS:\n- ¿Está on-brief? ¿Entrega los objetivos del cliente?\n- ¿Es vendible? ¿Puedo defenderlo en la sala?\n- ¿Es Relevante, Inesperado, Memorable, Motivador?\n- ¿Comunica un beneficio o solo features?\n- ¿Es factible con el presupuesto y timeline?\n\nLO QUE TE MOLESTA: Off-brief, ideas indefendibles, complejidad innecesaria, riesgo sin retorno claro.\n\nESTILO: Diplomático pero firme. Pragmático. Español con anglicismos del oficio.\n\nIMPORTANTE: Responde de forma conversacional, NO uses estructuras rígidas con headers fijos. Contesta la pregunta específica que te hacen. Si te muestran un entregable, da tu opinión como lo harías en una junta interna." + MODE_A
       }
     }
   },
@@ -51,7 +51,7 @@ const TEAM = {
     members: {
       generic: {
         name: "Director Digital",
-        prompt: "Eres el Director Digital. 15+ años. Ideas nativas.\n\nReferentes: Vaynerchuk (atención, nativo, valor primero), Tobaccowala (medible), modelo pillar → micro-content.\n\nEVALÚAS:\n1. NATIVIDAD — ¿Cada plataforma?\n2. ECOSISTEMA — ¿Pillar → micro-content → distribución?\n3. MEDIBILIDAD — ¿KPIs reales? ¿Optimizable?\n4. ATENCIÓN — ¿3-5 segundos enganchan?\n5. VALOR/PEDIDO — ¿Da antes de pedir?\n\nDEALBREAKERS: Afterthought, sin content strategy, inmedible, UX ignorada, vanity metrics.\n\nFORMATO:\n**NATIVIDAD:** [¿Nativo o adaptación?]\n**ECOSISTEMA:** [¿Sistema o suelto?]\n**MEDICIÓN:** [¿KPIs?]\n**LO QUE FUNCIONA:** [Qué]\n**LO QUE FALLA:** [Qué]\n**OPORTUNIDADES:** [Qué no ven]\n**VEREDICTO:** (A) Listo (B) Idea sí, digital no (C) Replantear\n\nData-informed. Español con anglicismos técnicos." + MODE_A
+        prompt: "Eres un Director Digital con 15+ años de experiencia. Crees en ideas nativas, no en adaptaciones.\n\nTus referentes: Gary Vaynerchuk (Jab Jab Jab Right Hook, atención, valor primero), Rishad Tobaccowala (medible, optimizable), modelo pillar → micro-content.\n\nLO QUE EVALÚAS:\n- ¿Es nativo de cada plataforma? LinkedIn ≠ TikTok ≠ Instagram\n- ¿Hay ecosistema (pillar → micro-content → distribución)?\n- ¿Es medible? ¿Tiene KPIs reales y se puede optimizar?\n- ¿Engancha en los primeros 3-5 segundos?\n- ¿Da valor antes de pedir algo?\n\nLO QUE TE MOLESTA: Digital como afterthought, falta de content strategy, métricas vanidosas, UX ignorada.\n\nESTILO: Data-informed pero no robótico. Español con anglicismos técnicos (engagement, CTR, performance, content strategy).\n\nIMPORTANTE: Responde de forma conversacional, NO uses estructuras rígidas con headers fijos. Si te preguntan algo específico, contesta eso desde tu expertise. Si te muestran una pieza, da tu opinión franca." + MODE_A
       }
     }
   }
@@ -114,7 +114,6 @@ async function callTwin(systemPrompt, messages) {
   } catch (e) { return "⚠️ Error de conexión. Intenta de nuevo."; }
 }
 
-// Helper to encode/decode twin selection as "area:member"
 function selectionKey(area, member) { return area + ":" + member; }
 function parseKey(key) { var p = key.split(":"); return { area: p[0], member: p[1] }; }
 
@@ -180,7 +179,6 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
   };
 
   var visible = (conversation || []).filter(function(m) { return m.display !== false; });
-  var label = member.name + (member.subtitle ? " — " + member.subtitle : " — " + area.name);
 
   return (
     <div style={{ border: "1px solid " + area.color + "33", borderRadius: 12, background: "#111", overflow: "hidden", marginBottom: 20 }}>
@@ -196,7 +194,7 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#666", padding: "8px 0" }}>
             <div style={{ width: 14, height: 14, border: "2px solid " + area.color, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}>Evaluando...</span>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}>Pensando...</span>
           </div>
         )}
         <div ref={endRef} />
@@ -205,7 +203,7 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
         <div style={{ padding: "12px 20px 16px", borderTop: "1px solid #1a1a1a", display: "flex", gap: 8 }}>
           <input value={reply} onChange={function(e) { setReply(e.target.value); }}
             onKeyDown={function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
-            placeholder="Responde al twin..." disabled={sending}
+            placeholder="Sigue la conversación..." disabled={sending}
             style={{ flex: 1, padding: "10px 14px", background: "#0a0a0a", border: "1px solid #222", borderRadius: 8, color: "#ccc", fontSize: 13, fontFamily: "'Inter', sans-serif" }} />
           <button onClick={handleReply} disabled={!reply.trim() || sending}
             style={{ padding: "10px 18px", background: reply.trim() && !sending ? area.color : "#1a1a1a", color: reply.trim() && !sending ? "#fff" : "#444", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: sending ? "wait" : "pointer", fontFamily: "'JetBrains Mono', monospace" }}>→</button>
@@ -256,18 +254,18 @@ function FileUpload({ onFileContent, fileName, onClear }) {
 
 export default function Home() {
   var selState = useState(["creative:ricardo"]); var selected = selState[0]; var setSelected = selState[1];
+  var qState = useState(""); var question = qState[0]; var setQuestion = qState[1];
   var delState = useState(""); var deliverable = delState[0]; var setDeliverable = delState[1];
-  var ctxState = useState(""); var context = ctxState[0]; var setContext = ctxState[1];
   var convState = useState({}); var conversations = convState[0]; var setConversations = convState[1];
   var loadState = useState({}); var loading = loadState[0]; var setLoading = loadState[1];
   var runState = useState(false); var running = runState[0]; var setRunning = runState[1];
-  var modeState = useState("text"); var inputMode = modeState[0]; var setInputMode = modeState[1];
+  var attachState = useState(false); var showAttach = attachState[0]; var setShowAttach = attachState[1];
   var fnState = useState(null); var fileName = fnState[0]; var setFileName = fnState[1];
   var resultsRef = useRef(null);
 
   var toggleTwin = function(key) { setSelected(function(prev) { return prev.includes(key) ? prev.filter(function(x) { return x !== key; }) : prev.concat([key]); }); };
-  var clearFile = function() { setDeliverable(""); setFileName(null); };
-  var hasContent = deliverable.trim().length > 0;
+  var clearFile = function() { setDeliverable(""); setFileName(null); setShowAttach(false); };
+  var hasContent = question.trim().length > 0;
 
   var runEvaluation = async function() {
     if (!hasContent || selected.length === 0) return;
@@ -275,8 +273,11 @@ export default function Home() {
     var initLoading = {}; selected.forEach(function(k) { initLoading[k] = true; }); setLoading(initLoading);
     setTimeout(function() { if (resultsRef.current) resultsRef.current.scrollIntoView({ behavior: "smooth" }); }, 200);
 
-    var ctxText = context.trim() ? "CONTEXTO:\n" + context.trim() + "\n\n" : "";
-    var userText = ctxText + "ENTREGABLE A EVALUAR:\n" + deliverable.trim().slice(0, 25000);
+    // Build the user message: question + optional attachment
+    var userText = question.trim();
+    if (deliverable.trim().length > 0) {
+      userText += "\n\n---\nMATERIAL DE REFERENCIA" + (fileName ? " (" + fileName + ")" : "") + ":\n" + deliverable.trim().slice(0, 25000);
+    }
 
     var promises = selected.map(function(key, i) {
       return new Promise(function(resolve) { setTimeout(resolve, i * 15000); }).then(async function() {
@@ -287,7 +288,7 @@ export default function Home() {
         setConversations(function(prev) {
           var next = Object.assign({}, prev);
           next[key] = [
-            { role: "user", text: fileName ? "[📄 " + fileName + "]" : userText.slice(0, 200) + "...", display: false },
+            { role: "user", text: userText, display: false },
             { role: "assistant", text: result }
           ];
           return next;
@@ -319,7 +320,7 @@ export default function Home() {
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "40px 20px" }}>
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontSize: 42, fontWeight: 800, margin: 0, letterSpacing: -1.5, fontFamily: "'JetBrains Mono', monospace", color: "#fff" }}>SPARRING</h1>
-          <p style={{ color: "#555", fontSize: 14, margin: "8px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Simulador de stakeholders — Fahrenheit DDB</p>
+          <p style={{ color: "#555", fontSize: 14, margin: "8px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Conversa con tus stakeholders — Fahrenheit DDB</p>
         </div>
 
         <div style={{ marginBottom: 28 }}>
@@ -330,34 +331,36 @@ export default function Home() {
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 12, color: "#666", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Contexto <span style={{ color: "#444", fontWeight: 400 }}>(opcional)</span></label>
-          <input value={context} onChange={function(e) { setContext(e.target.value); }} placeholder="Ej: Brief para BBVA, target AB 30-45"
-            style={{ width: "100%", marginTop: 8, padding: "12px 16px", background: "#141414", border: "1px solid #222", borderRadius: 8, color: "#ccc", fontSize: 14, fontFamily: "'Inter', sans-serif" }} />
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 12, color: "#666", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Entregable</label>
-          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            {[{ id: "text", label: "✏️ Texto" }, { id: "file", label: "📄 Archivo" }].map(function(mode) {
-              return <button key={mode.id} onClick={function() { setInputMode(mode.id); if (mode.id === "text") clearFile(); if (mode.id === "file") setDeliverable(""); }}
-                style={{ padding: "8px 16px", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", background: inputMode === mode.id ? "#1e1e1e" : "transparent", border: inputMode === mode.id ? "1px solid #333" : "1px solid #1a1a1a", borderRadius: 6, color: inputMode === mode.id ? "#ccc" : "#555", cursor: "pointer" }}
-              >{mode.label}</button>;
-            })}
-          </div>
+          <label style={{ fontSize: 12, color: "#666", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Tu pregunta</label>
+          <textarea value={question} onChange={function(e) { setQuestion(e.target.value); }}
+            placeholder="Ej: ¿Qué opinas de este insight para la campaña de BBVA? / ¿Cómo abordarías un brief de banca para jóvenes? / Revisa esta propuesta y dime qué le falta..."
+            rows={4}
+            style={{ width: "100%", marginTop: 8, padding: "14px 16px", background: "#141414", border: "1px solid #222", borderRadius: 8, color: "#ccc", fontSize: 14, lineHeight: 1.5, fontFamily: "'Inter', sans-serif", resize: "vertical" }} />
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          {inputMode === "text" ? (
-            <textarea value={deliverable} onChange={function(e) { setDeliverable(e.target.value); }} placeholder="Pega tu brief, propuesta, territorio, deck..." rows={8}
-              style={{ width: "100%", padding: 16, background: "#141414", border: "1px solid #222", borderRadius: 8, color: "#ccc", fontSize: 14, lineHeight: 1.6, resize: "vertical", fontFamily: "'Inter', sans-serif" }} />
+          {!showAttach && !fileName && deliverable.trim().length === 0 ? (
+            <button onClick={function() { setShowAttach(true); }}
+              style={{ background: "none", border: "1px dashed #333", borderRadius: 8, padding: "10px 14px", color: "#666", fontSize: 12, fontFamily: "'JetBrains Mono', monospace", cursor: "pointer", width: "100%" }}>
+              + Adjuntar material de referencia (opcional)
+            </button>
           ) : (
-            <FileUpload onFileContent={function(text, name) { setDeliverable(text); setFileName(name); }} fileName={fileName} onClear={clearFile} />
+            <div>
+              <label style={{ fontSize: 12, color: "#666", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Material de referencia <span style={{ color: "#444", fontWeight: 400 }}>(opcional)</span></label>
+              <div style={{ marginTop: 8, marginBottom: 8 }}>
+                <FileUpload onFileContent={function(text, name) { setDeliverable(text); setFileName(name); }} fileName={fileName} onClear={clearFile} />
+              </div>
+              {!fileName && (
+                <textarea value={deliverable} onChange={function(e) { setDeliverable(e.target.value); }} placeholder="O pega aquí el brief, la propuesta, el insight..." rows={5}
+                  style={{ width: "100%", padding: 14, background: "#141414", border: "1px solid #222", borderRadius: 8, color: "#ccc", fontSize: 13, lineHeight: 1.5, resize: "vertical", fontFamily: "'Inter', sans-serif" }} />
+              )}
+            </div>
           )}
         </div>
 
         <button onClick={runEvaluation} disabled={running || !hasContent || selected.length === 0}
           style={{ width: "100%", padding: "16px 0", fontSize: 15, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", background: running || !hasContent || selected.length === 0 ? "#1a1a1a" : "#2E75B6", color: running || !hasContent || selected.length === 0 ? "#444" : "#fff", border: "none", borderRadius: 10, cursor: running ? "wait" : "pointer", transition: "all 0.2s" }}
-        >{running ? "Evaluando..." : "SPARRING → " + selected.length + " twin" + (selected.length !== 1 ? "s" : "")}</button>
+        >{running ? "Pensando..." : "PREGUNTAR → " + selected.length + " twin" + (selected.length !== 1 ? "s" : "")}</button>
 
         <div ref={resultsRef} style={{ marginTop: 40 }}>
           {selected.map(function(key) {
