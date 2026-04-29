@@ -91,6 +91,19 @@ var TEAM = {
 async function extractTextFromFile(file) {
   var name = file.name.toLowerCase();
   if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv")) return await file.text();
+  if (name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp")) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var dataUrl = e.target.result;
+        var base64 = dataUrl.split(",")[1];
+        var mime = file.type || "image/png";
+        resolve({ __isImage: true, base64: base64, mime: mime, name: file.name });
+      };
+      reader.onerror = function() { reject(new Error("Error leyendo imagen")); };
+      reader.readAsDataURL(file);
+    });
+  }
   if (name.endsWith(".pdf")) {
     try {
       var pdfjsLib = window.pdfjsLib;
@@ -133,11 +146,13 @@ async function extractTextFromFile(file) {
   try { return await file.text(); } catch (e) { return "[Formato no soportado]"; }
 }
 
-async function callTwin(systemPrompt, messages) {
+async function callTwin(systemPrompt, messages, imageBase64, imageMime) {
   try {
+    var payload = { systemPrompt: systemPrompt, messages: messages };
+    if (imageBase64) { payload.imageBase64 = imageBase64; payload.imageMime = imageMime || "image/png"; }
     var res = await fetch("/api/sparring", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ systemPrompt: systemPrompt, messages: messages }),
+      body: JSON.stringify(payload),
     });
     var data = await res.json();
     if (data.error) return "⚠️ " + data.error;
@@ -244,7 +259,7 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
   );
 }
 
-function FileUpload({ onFileContent, fileName, onClear }) {
+function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
   var inputRef = useRef(null);
   var dragState = useState(false); var dragging = dragState[0]; var setDragging = dragState[1];
   var procState = useState(false); var processing = procState[0]; var setProcessing = procState[1];
@@ -253,9 +268,14 @@ function FileUpload({ onFileContent, fileName, onClear }) {
   var readFile = async function(file) {
     setError(null); setProcessing(true);
     try {
-      var text = await extractTextFromFile(file);
-      if (text && text.length > 0) onFileContent(text, file.name);
-      else setError("No se pudo extraer texto. Copia y pega.");
+      var result = await extractTextFromFile(file);
+      if (result && result.__isImage) {
+        onFileContent(result, file.name);
+      } else if (result && result.length > 0) {
+        onFileContent(result, file.name);
+      } else {
+        setError("No se pudo extraer contenido. Copia y pega.");
+      }
     } catch (err) { setError("Error al leer archivo."); }
     setProcessing(false);
   };
@@ -267,15 +287,18 @@ function FileUpload({ onFileContent, fileName, onClear }) {
           onDrop={function(e) { e.preventDefault(); setDragging(false); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) readFile(f); }}
           onClick={function() { if (inputRef.current) inputRef.current.click(); }}
           style={{ border: "2px dashed " + (dragging ? "#2E75B6" : "#2a2a2a"), borderRadius: 10, padding: "28px 16px", textAlign: "center", cursor: "pointer", background: dragging ? "#2E75B610" : "#141414" }}>
-          <input ref={inputRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.pptx" style={{ display: "none" }} onChange={function(e) { var f = e.target.files && e.target.files[0]; if (f) readFile(f); }} />
-          {processing ? <p style={{ color: "#2E75B6", fontSize: 13, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>Extrayendo texto...</p>
-            : <><p style={{ color: "#888", fontSize: 24, margin: "0 0 8px" }}>📄</p><p style={{ color: "#666", fontSize: 13, margin: "0 0 4px", fontFamily: "'JetBrains Mono', monospace" }}>Arrastra o haz clic</p><p style={{ color: "#444", fontSize: 11, margin: 0 }}>.pdf .docx .pptx .txt .md</p></>}
+          <input ref={inputRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp" style={{ display: "none" }} onChange={function(e) { var f = e.target.files && e.target.files[0]; if (f) readFile(f); }} />
+          {processing ? <p style={{ color: "#2E75B6", fontSize: 13, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>Leyendo archivo...</p>
+            : <><p style={{ color: "#888", fontSize: 24, margin: "0 0 8px" }}>📄</p><p style={{ color: "#666", fontSize: 13, margin: "0 0 4px", fontFamily: "'JetBrains Mono', monospace" }}>Arrastra o haz clic</p><p style={{ color: "#444", fontSize: 11, margin: 0 }}>.pdf .docx .pptx .txt .md .png .jpg</p></>}
         </div>
       ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#141414", border: "1px solid #2E75B644", borderRadius: 8 }}>
-          <span>📄</span>
-          <span style={{ color: "#2E75B6", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>
-          <button onClick={onClear} style={{ background: "none", border: "1px solid #333", borderRadius: 6, color: "#888", fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>✕</button>
+        <div style={{ background: "#141414", border: "1px solid #2E75B644", borderRadius: 8, overflow: "hidden" }}>
+          {imagePreview && <img src={imagePreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "contain", display: "block", background: "#0a0a0a" }} />}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+            <span>{imagePreview ? "🖼️" : "📄"}</span>
+            <span style={{ color: "#2E75B6", fontSize: 13, fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>
+            <button onClick={onClear} style={{ background: "none", border: "1px solid #333", borderRadius: 6, color: "#888", fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>✕</button>
+          </div>
         </div>
       )}
       {error && <p style={{ color: "#E74C3C", fontSize: 12, marginTop: 6 }}>{error}</p>}
@@ -292,11 +315,23 @@ export default function Home() {
   var runState = useState(false); var running = runState[0]; var setRunning = runState[1];
   var attachState = useState(false); var showAttach = attachState[0]; var setShowAttach = attachState[1];
   var fnState = useState(null); var fileName = fnState[0]; var setFileName = fnState[1];
+  var imgState = useState(null); var imageData = imgState[0]; var setImageData = imgState[1]; // { base64, mime, preview }
   var resultsRef = useRef(null);
 
   var toggleTwin = function(key) { setSelected(function(prev) { return prev.includes(key) ? prev.filter(function(x) { return x !== key; }) : prev.concat([key]); }); };
-  var clearFile = function() { setDeliverable(""); setFileName(null); setShowAttach(false); };
+  var clearFile = function() { setDeliverable(""); setFileName(null); setShowAttach(false); setImageData(null); };
   var hasContent = question.trim().length > 0;
+
+  var handleFileContent = function(result, name) {
+    if (result && result.__isImage) {
+      setImageData({ base64: result.base64, mime: result.mime, preview: "data:" + result.mime + ";base64," + result.base64 });
+      setDeliverable("");
+    } else {
+      setDeliverable(result);
+      setImageData(null);
+    }
+    setFileName(name);
+  };
 
   var runEvaluation = async function() {
     if (!hasContent || selected.length === 0) return;
@@ -305,8 +340,10 @@ export default function Home() {
     setTimeout(function() { if (resultsRef.current) resultsRef.current.scrollIntoView({ behavior: "smooth" }); }, 200);
 
     var userText = question.trim();
-    if (deliverable.trim().length > 0) {
+    if (!imageData && deliverable.trim().length > 0) {
       userText += "\n\n---\nMATERIAL DE REFERENCIA" + (fileName ? " (" + fileName + ")" : "") + ":\n" + deliverable.trim();
+    } else if (imageData && fileName) {
+      userText += "\n\n[Imagen adjunta: " + fileName + "]";
     }
 
     var promises = selected.map(function(key, i) {
@@ -314,7 +351,7 @@ export default function Home() {
         var parsed = parseKey(key);
         var member = TEAM[parsed.area].members[parsed.member];
         var msgs = [{ role: "user", content: userText }];
-        var result = await callTwin(member.prompt, msgs);
+        var result = await callTwin(member.prompt, msgs, imageData ? imageData.base64 : null, imageData ? imageData.mime : null);
         setConversations(function(prev) {
           var next = Object.assign({}, prev);
           next[key] = [
@@ -378,7 +415,7 @@ export default function Home() {
             <div>
               <label style={{ fontSize: 12, color: "#666", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Material de referencia <span style={{ color: "#444", fontWeight: 400 }}>(opcional)</span></label>
               <div style={{ marginTop: 8, marginBottom: 8 }}>
-                <FileUpload onFileContent={function(text, name) { setDeliverable(text); setFileName(name); }} fileName={fileName} onClear={clearFile} />
+                <FileUpload onFileContent={handleFileContent} fileName={fileName} onClear={clearFile} imagePreview={imageData ? imageData.preview : null} />
               </div>
               {!fileName && (
                 <textarea value={deliverable} onChange={function(e) { setDeliverable(e.target.value); }} placeholder="O pega aquí el brief, la propuesta, el insight..." rows={5}
