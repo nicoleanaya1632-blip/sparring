@@ -14,7 +14,7 @@ export async function POST(request) {
   for (var i = 0; i < messages.length; i++) {
     messageTokens += Math.ceil((messages[i].content || "").length / 4);
   }
-  var totalEstimate = systemTokens + messageTokens + 4096; // include max_tokens
+  var totalEstimate = systemTokens + messageTokens + 4096;
 
   // If fits within limit, send directly
   if (totalEstimate < 10000) {
@@ -43,7 +43,6 @@ export async function POST(request) {
     questionPart = fullText.substring(0, splitIdx).trim();
     materialPart = fullText.substring(splitIdx).trim();
   } else if (fullText.length > 5000) {
-    // No marker but very long — treat the whole thing as material
     materialPart = fullText;
     questionPart = "Evalúa y responde sobre el siguiente material.";
   }
@@ -55,7 +54,7 @@ export async function POST(request) {
   }
 
   // Chunk the material and summarize
-  var chunkSize = 6000; // ~1500 tokens per chunk
+  var chunkSize = 6000;
   var chunks = [];
   for (var c = 0; c < materialPart.length; c += chunkSize) {
     chunks.push(materialPart.substring(c, c + chunkSize));
@@ -63,9 +62,8 @@ export async function POST(request) {
 
   var summaries = [];
   for (var ci = 0; ci < chunks.length; ci++) {
-    // Wait between chunks to respect rate limits
     if (ci > 0) {
-      await new Promise(function(r) { setTimeout(r, 8000); });
+      await new Promise(function(r) { setTimeout(r, 12000); });
     }
 
     var sumMessages = [{
@@ -74,11 +72,11 @@ export async function POST(request) {
     }];
 
     try {
-      var sumRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      var sumRes = await fetchWithRetry("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
         body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
           messages: [{ role: "system", content: "Eres un asistente que resume textos de forma densa y precisa en español." }].concat(sumMessages),
           max_tokens: 1000,
           temperature: 0.3,
@@ -95,10 +93,8 @@ export async function POST(request) {
     }
   }
 
-  // Wait before final call
-  await new Promise(function(r) { setTimeout(r, 8000); });
+  await new Promise(function(r) { setTimeout(r, 12000); });
 
-  // Build compressed message
   var compressedMaterial = summaries.join("\n\n");
   var newContent = questionPart + "\n\n---\nRESUMEN DEL MATERIAL:\n" + compressedMaterial;
 
@@ -108,6 +104,22 @@ export async function POST(request) {
   return await callGroq(apiKey, systemPrompt, newMessages, 4096);
 }
 
+// ─── AUTO-RETRY: if rate limited, wait and retry up to 3 times ───────────────
+async function fetchWithRetry(url, options, maxRetries) {
+  if (!maxRetries) maxRetries = 3;
+  for (var attempt = 0; attempt < maxRetries; attempt++) {
+    var res = await fetch(url, options);
+    if (res.status === 429) {
+      var retryAfter = res.headers.get("retry-after");
+      var waitMs = retryAfter ? (parseFloat(retryAfter) * 1000 + 3000) : 65000;
+      await new Promise(function(r) { setTimeout(r, waitMs); });
+      continue;
+    }
+    return res;
+  }
+  return await fetch(url, options);
+}
+
 async function callGroq(apiKey, systemPrompt, messages, maxTokens) {
   var groqMessages = [{ role: "system", content: systemPrompt }];
   for (var i = 0; i < messages.length; i++) {
@@ -115,11 +127,11 @@ async function callGroq(apiKey, systemPrompt, messages, maxTokens) {
   }
 
   try {
-    var res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    var res = await fetchWithRetry("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: groqMessages,
         max_tokens: maxTokens,
         temperature: 0.7,
