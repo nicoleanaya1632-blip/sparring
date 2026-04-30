@@ -134,12 +134,10 @@ var TEAM = {
     members: {
       ricardo: {
         name: "Ricardo Chadwick",
-        subtitle: "Socio Fundador · CCO",
         prompt: RICARDO_PROMPT
       },
       alberto: {
         name: "Alberto Goachet",
-        subtitle: "Socio Fundador · Co-CEO",
         prompt: ALBERTO_PROMPT
       }
     }
@@ -166,7 +164,6 @@ var TEAM = {
       },
       sergio: {
         name: "Sergio Franco",
-        subtitle: "CCO Fahrenheit DDB",
         prompt: SERGIO_PROMPT
       }
     }
@@ -457,24 +454,26 @@ export default function Home() {
       userText += "\n\n[Imagen adjunta: " + fileName + "]";
     }
 
-    var promises = selected.map(function(key, i) {
-      return new Promise(function(resolve) { setTimeout(resolve, i * 15000); }).then(async function() {
-        var parsed = parseKey(key);
-        var member = TEAM[parsed.area].members[parsed.member];
-        var msgs = [{ role: "user", content: userText }];
-        var result = await callTwin(member.prompt, msgs, imageData ? imageData.base64 : null, imageData ? imageData.mime : null);
-        setConversations(function(prev) {
-          var next = Object.assign({}, prev);
-          next[key] = [
-            { role: "user", text: userText, display: false },
-            { role: "assistant", text: result }
-          ];
-          return next;
-        });
-        setLoading(function(prev) { var next = Object.assign({}, prev); next[key] = false; return next; });
+    // Sequential calls with 20s between each to respect 6000 TPM limit
+    for (var i = 0; i < selected.length; i++) {
+      var key = selected[i];
+      if (i > 0) {
+        await new Promise(function(resolve) { setTimeout(resolve, 20000); });
+      }
+      var parsed = parseKey(key);
+      var member = TEAM[parsed.area].members[parsed.member];
+      var msgs = [{ role: "user", content: userText }];
+      var result = await callTwin(member.prompt, msgs, imageData ? imageData.base64 : null, imageData ? imageData.mime : null);
+      setConversations(function(prev) {
+        var next = Object.assign({}, prev);
+        next[key] = [
+          { role: "user", text: userText, display: false },
+          { role: "assistant", text: result }
+        ];
+        return next;
       });
-    });
-    await Promise.all(promises);
+      setLoading(function(prev) { var next = Object.assign({}, prev); next[key] = false; return next; });
+    }
     setRunning(false);
   };
 
@@ -498,7 +497,7 @@ export default function Home() {
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "40px 20px" }}>
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontSize: 42, fontWeight: 800, margin: 0, letterSpacing: -1.5, fontFamily: "'JetBrains Mono', monospace", color: "#fff" }}>SPARRING</h1>
-          <p style={{ color: "#555", fontSize: 14, margin: "8px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Conversa con tus stakeholders — Fahrenheit DDB</p>
+          <p style={{ color: "#555", fontSize: 14, margin: "8px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Conversa con tus líderes — Fahrenheit DDB</p>
         </div>
 
         <div style={{ marginBottom: 28 }}>
