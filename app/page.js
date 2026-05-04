@@ -258,37 +258,49 @@ function parseKey(key) { var p = key.split(":"); return { area: p[0], member: p[
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
 
-function AreaCard({ areaId, area, selected, onToggle }) {
+function AreaCard({ areaId, area, selected, onToggle, isLast }) {
   var memberIds = Object.keys(area.members);
   var isYellow = area.color === YELLOW;
   return (
     <div style={{
-      borderBottom: "1px solid " + BORDER_SOFT,
+      borderBottom: isLast ? "none" : "1px solid " + BORDER_SOFT,
       background: BG,
+      padding: "20px 0",
     }}>
+      {/* HEADING grande, claramente diferenciado */}
       <div style={{
-        padding: "12px 0",
         display: "flex",
         alignItems: "center",
-        gap: 12,
+        gap: 14,
+        marginBottom: 12,
       }}>
         <span style={{
           color: isYellow ? "#C9A300" : BLACK,
-          fontSize: 15,
+          fontSize: 22,
           fontFamily: "'JetBrains Mono', monospace",
-          minWidth: 22,
-          textAlign: "center",
+          lineHeight: 1,
         }}>{area.icon}</span>
         <span style={{
           fontWeight: 900,
           color: BLACK,
-          fontSize: 12,
+          fontSize: 24,
           fontFamily: "'JetBrains Mono', monospace",
           textTransform: "uppercase",
-          letterSpacing: "0.22em",
+          letterSpacing: "-0.01em",
+          lineHeight: 1,
         }}>{area.name}</span>
+        {isYellow && (
+          <div style={{
+            flex: 1,
+            height: 3,
+            background: YELLOW,
+            marginLeft: 8,
+          }} />
+        )}
       </div>
-      <div style={{ paddingLeft: 34, paddingBottom: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+
+      {/* Opciones — indent moderado, claramente subordinadas */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {memberIds.map(function(memberId) {
           var member = area.members[memberId];
           var key = selectionKey(areaId, memberId);
@@ -298,7 +310,7 @@ function AreaCard({ areaId, area, selected, onToggle }) {
               display: "flex",
               alignItems: "center",
               gap: 14,
-              padding: "11px 14px",
+              padding: "10px 14px",
               border: "none",
               borderLeft: isOn ? "3px solid " + (isYellow ? YELLOW : BLACK) : "3px solid transparent",
               background: isOn ? (isYellow ? YELLOW + "1f" : "#f3f3ee") : "transparent",
@@ -461,7 +473,7 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
               flex: 1,
               padding: "12px 16px",
               background: BG,
-              border: "1px solid " + BORDER,
+              border: "1px solid " + BLACK,
               borderRight: "none",
               color: BLACK,
               fontSize: 14,
@@ -628,6 +640,8 @@ export default function Home() {
 
   var canRun = !running && hasContent && selected.length > 0;
 
+  var teamEntries = Object.entries(TEAM);
+
   return (
     <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Georgia', serif" }}>
       <style>{`
@@ -641,224 +655,239 @@ export default function Home() {
         body { background: #ffffff; }
       `}</style>
 
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 28px 100px" }}>
+      {/* Wrapper exterior con bordes negros que delimitan el área de trabajo */}
+      <div style={{
+        maxWidth: 1180,
+        margin: "32px auto",
+        border: "1px solid " + BLACK,
+        background: BG,
+      }}>
+        <div style={{ padding: "0 64px 100px" }}>
 
-        {/* ── HEADER ── */}
-        <div style={{ borderBottom: "2px solid " + BLACK, paddingTop: 64, paddingBottom: 44, marginBottom: 52 }}>
+          {/* ── HEADER ── */}
+          <div style={{ borderBottom: "2px solid " + BLACK, paddingTop: 64, paddingBottom: 44, marginBottom: 56 }}>
 
-          <div style={{ width: 56, height: 5, background: YELLOW, marginBottom: 32 }} />
+            <div style={{ width: 56, height: 5, background: YELLOW, marginBottom: 32 }} />
 
-          <h1 style={{
-            fontSize: 92,
-            fontWeight: 900,
-            margin: "0",
-            letterSpacing: "-0.04em",
-            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-            color: BLACK,
-            lineHeight: 0.92,
-          }}>SPARRING</h1>
-
-          <p style={{
-            fontSize: 22,
-            color: BLACK,
-            margin: "20px 0 0",
-            fontFamily: "'Georgia', serif",
-            fontStyle: "italic",
-            lineHeight: 1.4,
-            fontWeight: 400,
-          }}>Conversa con tus líderes.</p>
-
-          <div style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 12,
-            color: TEXT_DIM,
-            letterSpacing: "0.25em",
-            textTransform: "uppercase",
-            marginTop: 24,
-            marginBottom: 24,
-          }}>Fahrenheit DDB</div>
-
-          {/* Disclaimer */}
-          <div style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 12,
-            border: "1px solid " + BLACK,
-            padding: "10px 16px",
-            background: BG,
-          }}>
-            <div style={{ width: 8, height: 8, background: YELLOW, flexShrink: 0 }} />
-            <span style={{
+            <h1 style={{
+              fontSize: 104,
+              fontWeight: 900,
+              margin: "0",
+              letterSpacing: "-0.04em",
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
               color: BLACK,
-              fontSize: 12,
-              fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.05em",
-            }}>Herramienta compartida · Límite de 1,000 consultas por día entre todos los usuarios</span>
-          </div>
-        </div>
+              lineHeight: 0.92,
+            }}>SPARRING</h1>
 
-        {/* ── PANEL ── */}
-        <div style={{ marginBottom: 44 }}>
-          <div style={{
-            fontSize: 11,
-            color: BLACK,
-            fontWeight: 900,
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            fontFamily: "'JetBrains Mono', monospace",
-            marginBottom: 18,
-          }}>Panel</div>
-          <div style={{ borderTop: "2px solid " + BLACK, borderBottom: "2px solid " + BLACK }}>
-            {Object.entries(TEAM).map(function(entry) {
-              return <AreaCard key={entry[0]} areaId={entry[0]} area={entry[1]} selected={selected} onToggle={toggleTwin} />;
-            })}
-          </div>
-        </div>
-
-        {/* ── PREGUNTA ── */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{
-            fontSize: 11,
-            color: BLACK,
-            fontWeight: 900,
-            letterSpacing: "0.28em",
-            textTransform: "uppercase",
-            fontFamily: "'JetBrains Mono', monospace",
-            marginBottom: 12,
-          }}>Tu pregunta</div>
-          <textarea
-            value={question}
-            onChange={function(e) { setQuestion(e.target.value); }}
-            placeholder="¿Qué opinas de este insight? / ¿Cómo abordarías un brief de banca para jóvenes? / Revisa esta propuesta..."
-            rows={4}
-            style={{
-              width: "100%",
-              padding: "16px 18px",
-              background: BG,
-              border: "1px solid " + BLACK,
+            <p style={{
+              fontSize: 24,
               color: BLACK,
-              fontSize: 16,
-              lineHeight: 1.7,
+              margin: "22px 0 0",
               fontFamily: "'Georgia', serif",
-              resize: "vertical",
-            }}
-          />
-        </div>
+              fontStyle: "italic",
+              lineHeight: 1.4,
+              fontWeight: 400,
+            }}>Conversa con tus líderes.</p>
 
-        {/* ── ADJUNTO ── */}
-        <div style={{ marginBottom: 36 }}>
-          {!showAttach && !fileName && deliverable.trim().length === 0 ? (
-            <button
-              onClick={function() { setShowAttach(true); }}
-              style={{
-                background: BG,
-                border: "1px dashed #bbb",
-                padding: "12px 16px",
-                color: TEXT_DIM,
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 12,
+              color: TEXT_DIM,
+              letterSpacing: "0.25em",
+              textTransform: "uppercase",
+              marginTop: 26,
+              marginBottom: 26,
+            }}>Fahrenheit DDB</div>
+
+            {/* Disclaimer */}
+            <div style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 12,
+              border: "1px solid " + BLACK,
+              padding: "10px 16px",
+              background: BG,
+            }}>
+              <div style={{ width: 8, height: 8, background: YELLOW, flexShrink: 0 }} />
+              <span style={{
+                color: BLACK,
                 fontSize: 12,
                 fontFamily: "'JetBrains Mono', monospace",
-                cursor: "pointer",
+                letterSpacing: "0.05em",
+              }}>Herramienta compartida · Límite de 1,000 consultas por día entre todos los usuarios</span>
+            </div>
+          </div>
+
+          {/* ── PANEL ── */}
+          <div style={{ marginBottom: 52 }}>
+            <div style={{
+              fontSize: 11,
+              color: TEXT_MUTED,
+              fontWeight: 700,
+              letterSpacing: "0.28em",
+              textTransform: "uppercase",
+              fontFamily: "'JetBrains Mono', monospace",
+              marginBottom: 8,
+            }}>Panel</div>
+            <div style={{ borderTop: "2px solid " + BLACK, borderBottom: "2px solid " + BLACK }}>
+              {teamEntries.map(function(entry, idx) {
+                return <AreaCard
+                  key={entry[0]}
+                  areaId={entry[0]}
+                  area={entry[1]}
+                  selected={selected}
+                  onToggle={toggleTwin}
+                  isLast={idx === teamEntries.length - 1}
+                />;
+              })}
+            </div>
+          </div>
+
+          {/* ── PREGUNTA ── */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{
+              fontSize: 11,
+              color: TEXT_MUTED,
+              fontWeight: 700,
+              letterSpacing: "0.28em",
+              textTransform: "uppercase",
+              fontFamily: "'JetBrains Mono', monospace",
+              marginBottom: 14,
+            }}>Tu pregunta</div>
+            <textarea
+              value={question}
+              onChange={function(e) { setQuestion(e.target.value); }}
+              placeholder="¿Qué opinas de este insight? / ¿Cómo abordarías un brief de banca para jóvenes? / Revisa esta propuesta..."
+              rows={4}
+              style={{
                 width: "100%",
+                padding: "16px 18px",
+                background: BG,
+                border: "1px solid " + BLACK,
+                color: BLACK,
+                fontSize: 16,
+                lineHeight: 1.7,
+                fontFamily: "'Georgia', serif",
+                resize: "vertical",
+              }}
+            />
+          </div>
+
+          {/* ── ADJUNTO ── */}
+          <div style={{ marginBottom: 40 }}>
+            {!showAttach && !fileName && deliverable.trim().length === 0 ? (
+              <button
+                onClick={function() { setShowAttach(true); }}
+                style={{
+                  background: BG,
+                  border: "1px dashed #bbb",
+                  padding: "12px 16px",
+                  color: TEXT_DIM,
+                  fontSize: 12,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  cursor: "pointer",
+                  width: "100%",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}>
+                + Adjuntar material de referencia (opcional)
+              </button>
+            ) : (
+              <div>
+                <div style={{
+                  fontSize: 11,
+                  color: TEXT_MUTED,
+                  fontWeight: 700,
+                  letterSpacing: "0.28em",
+                  textTransform: "uppercase",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  marginBottom: 14,
+                }}>Material de referencia <span style={{ color: TEXT_MUTED, fontWeight: 400 }}>(opcional)</span></div>
+                <div style={{ marginBottom: 10 }}>
+                  <FileUpload onFileContent={handleFileContent} fileName={fileName} onClear={clearFile} imagePreview={imageData ? imageData.preview : null} />
+                </div>
+                {!fileName && (
+                  <textarea
+                    value={deliverable}
+                    onChange={function(e) { setDeliverable(e.target.value); }}
+                    placeholder="O pegá aquí el brief, la propuesta, el insight..."
+                    rows={5}
+                    style={{
+                      width: "100%",
+                      padding: "16px 18px",
+                      background: BG,
+                      border: "1px solid " + BLACK,
+                      color: BLACK,
+                      fontSize: 15,
+                      lineHeight: 1.7,
+                      resize: "vertical",
+                      fontFamily: "'Georgia', serif",
+                    }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── CTA ── */}
+          <button
+            onClick={runEvaluation}
+            disabled={!canRun}
+            style={{
+              width: "100%",
+              padding: "22px 0",
+              fontSize: 15,
+              fontWeight: 900,
+              fontFamily: "'JetBrains Mono', monospace",
+              background: canRun ? YELLOW : "#f0f0eb",
+              color: canRun ? BLACK : "#aaa",
+              border: "2px solid " + (canRun ? BLACK : "#ddd"),
+              cursor: canRun ? "pointer" : "default",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              transition: "all 0.1s",
+            }}
+          >{running ? "Consultando..." : "Preguntar → " + selected.length + " twin" + (selected.length !== 1 ? "s" : "")}</button>
+
+          {/* ── RESULTADOS ── */}
+          <div ref={resultsRef} style={{ marginTop: 72 }}>
+            {selected.map(function(key) {
+              if (!conversations[key] && !loading[key]) return null;
+              var parsed = parseKey(key);
+              var area = TEAM[parsed.area];
+              var member = area.members[parsed.member];
+              return (
+                <TwinCard
+                  key={key}
+                  twinKey={key}
+                  area={area}
+                  member={member}
+                  conversation={conversations[key] || []}
+                  loading={loading[key]}
+                  onReply={handleReply}
+                />
+              );
+            })}
+          </div>
+
+          {Object.keys(conversations).length > 0 && !running && (
+            <div style={{
+              marginTop: 12,
+              padding: "14px 18px",
+              border: "1px solid " + BORDER_SOFT,
+              background: SURFACE,
+            }}>
+              <p style={{
+                color: TEXT_DIM,
+                fontSize: 11,
+                margin: 0,
+                fontFamily: "'JetBrains Mono', monospace",
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-              }}>
-              + Adjuntar material de referencia (opcional)
-            </button>
-          ) : (
-            <div>
-              <div style={{
-                fontSize: 11,
-                color: BLACK,
-                fontWeight: 900,
-                letterSpacing: "0.28em",
-                textTransform: "uppercase",
-                fontFamily: "'JetBrains Mono', monospace",
-                marginBottom: 12,
-              }}>Material de referencia <span style={{ color: TEXT_MUTED, fontWeight: 400 }}>(opcional)</span></div>
-              <div style={{ marginBottom: 10 }}>
-                <FileUpload onFileContent={handleFileContent} fileName={fileName} onClear={clearFile} imagePreview={imageData ? imageData.preview : null} />
-              </div>
-              {!fileName && (
-                <textarea
-                  value={deliverable}
-                  onChange={function(e) { setDeliverable(e.target.value); }}
-                  placeholder="O pegá aquí el brief, la propuesta, el insight..."
-                  rows={5}
-                  style={{
-                    width: "100%",
-                    padding: "16px 18px",
-                    background: BG,
-                    border: "1px solid " + BLACK,
-                    color: BLACK,
-                    fontSize: 15,
-                    lineHeight: 1.7,
-                    resize: "vertical",
-                    fontFamily: "'Georgia', serif",
-                  }}
-                />
-              )}
+              }}>Cada twin mantiene su propia conversación. Podés profundizar, cuestionar o pedir alternativas.</p>
             </div>
           )}
         </div>
-
-        {/* ── CTA ── */}
-        <button
-          onClick={runEvaluation}
-          disabled={!canRun}
-          style={{
-            width: "100%",
-            padding: "20px 0",
-            fontSize: 14,
-            fontWeight: 900,
-            fontFamily: "'JetBrains Mono', monospace",
-            background: canRun ? YELLOW : "#f0f0eb",
-            color: canRun ? BLACK : "#aaa",
-            border: "2px solid " + (canRun ? BLACK : "#ddd"),
-            cursor: canRun ? "pointer" : "default",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            transition: "all 0.1s",
-          }}
-        >{running ? "Consultando..." : "Preguntar → " + selected.length + " twin" + (selected.length !== 1 ? "s" : "")}</button>
-
-        {/* ── RESULTADOS ── */}
-        <div ref={resultsRef} style={{ marginTop: 64 }}>
-          {selected.map(function(key) {
-            if (!conversations[key] && !loading[key]) return null;
-            var parsed = parseKey(key);
-            var area = TEAM[parsed.area];
-            var member = area.members[parsed.member];
-            return (
-              <TwinCard
-                key={key}
-                twinKey={key}
-                area={area}
-                member={member}
-                conversation={conversations[key] || []}
-                loading={loading[key]}
-                onReply={handleReply}
-              />
-            );
-          })}
-        </div>
-
-        {Object.keys(conversations).length > 0 && !running && (
-          <div style={{
-            marginTop: 12,
-            padding: "14px 18px",
-            border: "1px solid " + BORDER_SOFT,
-            background: SURFACE,
-          }}>
-            <p style={{
-              color: TEXT_DIM,
-              fontSize: 11,
-              margin: 0,
-              fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}>Cada twin mantiene su propia conversación. Podés profundizar, cuestionar o pedir alternativas.</p>
-          </div>
-        )}
       </div>
     </div>
   );
