@@ -258,48 +258,47 @@ function parseKey(key) { var p = key.split(":"); return { area: p[0], member: p[
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
 
-function AreaCard({ areaId, area, selected, onToggle, isLast }) {
+function AreaCard({ areaId, area, selected, onToggle, isLast, index }) {
   var memberIds = Object.keys(area.members);
   var isYellow = area.color === YELLOW;
+  var isEven = index % 2 === 0;
+  var cardBg = isEven ? "#fafaf7" : BG;
   return (
     <div style={{
-      borderBottom: isLast ? "none" : "1px solid " + BORDER_SOFT,
-      background: BG,
-      padding: "20px 0",
+      background: cardBg,
+      borderBottom: isLast ? "none" : "2px solid " + BORDER,
+      padding: "28px 24px 24px",
     }}>
-      {/* HEADING grande, claramente diferenciado */}
+      {/* Header del área */}
       <div style={{
         display: "flex",
         alignItems: "center",
-        gap: 14,
-        marginBottom: 12,
+        gap: 12,
+        marginBottom: 16,
+        paddingBottom: 14,
+        borderBottom: "1px solid " + (isYellow ? YELLOW : BORDER_SOFT),
       }}>
         <span style={{
           color: isYellow ? "#C9A300" : BLACK,
-          fontSize: 22,
+          fontSize: 18,
           fontFamily: "'JetBrains Mono', monospace",
           lineHeight: 1,
         }}>{area.icon}</span>
         <span style={{
           fontWeight: 900,
           color: BLACK,
-          fontSize: 24,
+          fontSize: 20,
           fontFamily: "'JetBrains Mono', monospace",
           textTransform: "uppercase",
-          letterSpacing: "-0.01em",
+          letterSpacing: "0.04em",
           lineHeight: 1,
         }}>{area.name}</span>
         {isYellow && (
-          <div style={{
-            flex: 1,
-            height: 3,
-            background: YELLOW,
-            marginLeft: 8,
-          }} />
+          <div style={{ width: 8, height: 8, background: YELLOW, marginLeft: 4, flexShrink: 0 }} />
         )}
       </div>
 
-      {/* Opciones — indent moderado, claramente subordinadas */}
+      {/* Opciones */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {memberIds.map(function(memberId) {
           var member = area.members[memberId];
@@ -313,7 +312,7 @@ function AreaCard({ areaId, area, selected, onToggle, isLast }) {
               padding: "10px 14px",
               border: "none",
               borderLeft: isOn ? "3px solid " + (isYellow ? YELLOW : BLACK) : "3px solid transparent",
-              background: isOn ? (isYellow ? YELLOW + "1f" : "#f3f3ee") : "transparent",
+              background: isOn ? (isYellow ? YELLOW + "22" : "#ececec") : "transparent",
               cursor: "pointer",
               textAlign: "left",
               width: "100%",
@@ -379,16 +378,43 @@ function MessageBubble({ role, text, color }) {
 function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
   var replyState = useState(""); var reply = replyState[0]; var setReply = replyState[1];
   var sendState = useState(false); var sending = sendState[0]; var setSending = sendState[1];
+  var showAttachState = useState(false); var showReplyAttach = showAttachState[0]; var setShowReplyAttach = showAttachState[1];
+  var replyFileState = useState(null); var replyFileName = replyFileState[0]; var setReplyFileName = replyFileState[1];
+  var replyImgState = useState(null); var replyImageData = replyImgState[0]; var setReplyImageData = replyImgState[1];
+  var replyTextState = useState(""); var replyFileText = replyTextState[0]; var setReplyFileText = replyTextState[1];
   var endRef = useRef(null);
   useEffect(function() { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [conversation]);
 
+  var clearReplyFile = function() {
+    setReplyFileName(null); setReplyImageData(null); setReplyFileText(""); setShowReplyAttach(false);
+  };
+
+  var handleReplyFileContent = function(result, name) {
+    if (result && result.__isImage) {
+      setReplyImageData({ base64: result.base64, mime: result.mime, preview: "data:" + result.mime + ";base64," + result.base64 });
+      setReplyFileText("");
+    } else {
+      setReplyFileText(result);
+      setReplyImageData(null);
+    }
+    setReplyFileName(name);
+  };
+
   var handleReply = async function() {
-    if (!reply.trim() || sending) return;
+    if (!reply.trim() && !replyFileName) return;
+    if (sending) return;
     var msg = reply.trim();
+    if (replyFileText) msg += "\n\n---\nMATERIAL ADJUNTO (" + replyFileName + "):\n" + replyFileText;
+    else if (replyImageData && replyFileName) msg += "\n\n[Imagen adjunta: " + replyFileName + "]";
     setReply(""); setSending(true);
-    await onReply(twinKey, msg);
+    var img = replyImageData ? replyImageData.base64 : null;
+    var mime = replyImageData ? replyImageData.mime : null;
+    clearReplyFile();
+    await onReply(twinKey, msg, img, mime);
     setSending(false);
   };
+
+  var canSend = (reply.trim().length > 0 || !!replyFileName) && !sending;
 
   var visible = (conversation || []).filter(function(m) { return m.display !== false; });
   var isYellow = area.color === YELLOW;
@@ -462,37 +488,65 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
       </div>
 
       {visible.length > 0 && !loading && (
-        <div style={{ padding: "14px 24px 20px", borderTop: "1px solid " + BORDER_SOFT, display: "flex", gap: 0 }}>
-          <input
-            value={reply}
-            onChange={function(e) { setReply(e.target.value); }}
-            onKeyDown={function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
-            placeholder="Seguir conversando..."
-            disabled={sending}
-            style={{
-              flex: 1,
-              padding: "12px 16px",
-              background: BG,
-              border: "1px solid " + BLACK,
-              borderRight: "none",
-              color: BLACK,
-              fontSize: 14,
-              fontFamily: "'JetBrains Mono', monospace",
-            }}
-          />
-          <button
-            onClick={handleReply}
-            disabled={!reply.trim() || sending}
-            style={{
-              padding: "12px 22px",
-              background: reply.trim() && !sending ? YELLOW : "#eee",
-              color: reply.trim() && !sending ? BLACK : "#999",
-              border: "1px solid " + (reply.trim() && !sending ? YELLOW : "#ddd"),
-              fontSize: 16,
-              fontWeight: 900,
-              cursor: sending ? "wait" : "pointer",
-              fontFamily: "'JetBrains Mono', monospace",
-            }}>→</button>
+        <div style={{ borderTop: "1px solid " + BORDER_SOFT }}>
+          {/* Adjunto en reply */}
+          {showReplyAttach && (
+            <div style={{ padding: "12px 24px 0" }}>
+              <FileUpload
+                onFileContent={handleReplyFileContent}
+                fileName={replyFileName}
+                onClear={clearReplyFile}
+                imagePreview={replyImageData ? replyImageData.preview : null}
+              />
+            </div>
+          )}
+          {/* Input de texto + controles */}
+          <div style={{ padding: "14px 24px 20px", display: "flex", gap: 0, alignItems: "stretch" }}>
+            <button
+              onClick={function() { setShowReplyAttach(!showReplyAttach); }}
+              title="Adjuntar archivo"
+              style={{
+                padding: "0 14px",
+                background: showReplyAttach || replyFileName ? (isYellow ? YELLOW : "#e0e0e0") : BG,
+                border: "1px solid " + BLACK,
+                borderRight: "none",
+                color: BLACK,
+                fontSize: 15,
+                cursor: "pointer",
+                fontFamily: "'JetBrains Mono', monospace",
+                flexShrink: 0,
+              }}>⊕</button>
+            <input
+              value={reply}
+              onChange={function(e) { setReply(e.target.value); }}
+              onKeyDown={function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+              placeholder={replyFileName ? "Agregar mensaje (opcional)..." : "Seguir conversando..."}
+              disabled={sending}
+              style={{
+                flex: 1,
+                padding: "12px 16px",
+                background: BG,
+                border: "1px solid " + BLACK,
+                borderRight: "none",
+                color: BLACK,
+                fontSize: 14,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            />
+            <button
+              onClick={handleReply}
+              disabled={!canSend}
+              style={{
+                padding: "12px 22px",
+                background: canSend ? YELLOW : "#eee",
+                color: canSend ? BLACK : "#999",
+                border: "1px solid " + (canSend ? YELLOW : "#ddd"),
+                fontSize: 16,
+                fontWeight: 900,
+                cursor: sending ? "wait" : "pointer",
+                fontFamily: "'JetBrains Mono', monospace",
+              }}>→</button>
+          </div>
         </div>
       )}
     </div>
@@ -625,7 +679,7 @@ export default function Home() {
     setRunning(false);
   };
 
-  var handleReply = async function(twinKey, replyText) {
+  var handleReply = async function(twinKey, replyText, imgBase64, imgMime) {
     var conv = conversations[twinKey] || [];
     var newConv = conv.concat([{ role: "user", text: replyText }]);
     setConversations(function(prev) { var next = Object.assign({}, prev); next[twinKey] = newConv; return next; });
@@ -633,7 +687,7 @@ export default function Home() {
     var parsed = parseKey(twinKey);
     var member = TEAM[parsed.area].members[parsed.member];
     var apiMessages = newConv.map(function(m) { return { role: m.role, content: m.text }; });
-    var result = await callTwin(member.prompt, apiMessages);
+    var result = await callTwin(member.prompt, apiMessages, imgBase64 || null, imgMime || null);
     setConversations(function(prev) { var next = Object.assign({}, prev); next[twinKey] = prev[twinKey].concat([{ role: "assistant", text: result }]); return next; });
     setLoading(function(prev) { var next = Object.assign({}, prev); next[twinKey] = false; return next; });
   };
@@ -738,6 +792,7 @@ export default function Home() {
                   selected={selected}
                   onToggle={toggleTwin}
                   isLast={idx === teamEntries.length - 1}
+                  index={idx}
                 />;
               })}
             </div>
