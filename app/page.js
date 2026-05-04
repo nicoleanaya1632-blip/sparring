@@ -121,15 +121,17 @@ Trabajás con el modelo de contenido ancla que se expande: una pieza grande (cam
 
 Cómo hablás: español con anglicismos técnicos cuando salen naturalmente (KPI, reach, engagement, funnel, content strategy, performance). Data-informed pero no frío — los números te importan para tomar decisiones, no para justificar lo que ya decidiste. Reaccionás como en una reunión real: a veces señalando el problema de plataforma que nadie mencionó, a veces con un dato específico que cambia la conversación, a veces con la pregunta de negocio que falta.` + FORMAT_HARD;
 
-// ─── COLORES ──────────────────────────────────────────────────────────────────
+// ─── COLORES — TEMA CLARO ─────────────────────────────────────────────────────
 var YELLOW = "#F5C500";
 var BLACK = "#0a0a0a";
 var WHITE = "#ffffff";
-var GRAY = "#1a1a1a";
-var GRAY2 = "#111111";
-var BORDER = "#222222";
-var TEXT_DIM = "#888";
-var TEXT_MUTED = "#444";
+var BG = "#ffffff";
+var SURFACE = "#fafaf7";
+var BORDER = "#1a1a1a";
+var BORDER_SOFT = "#e5e5e0";
+var TEXT = "#0a0a0a";
+var TEXT_DIM = "#555";
+var TEXT_MUTED = "#888";
 
 // ─── TEAM ────────────────────────────────────────────────────────────────────
 var TEAM = {
@@ -145,7 +147,7 @@ var TEAM = {
   planning: {
     name: "Planning",
     icon: "◈",
-    color: WHITE,
+    color: BLACK,
     members: {
       generic: { name: "Perspectiva general", prompt: PLANNING_GENERIC }
     }
@@ -162,7 +164,7 @@ var TEAM = {
   marcas: {
     name: "Marcas",
     icon: "◇",
-    color: WHITE,
+    color: BLACK,
     members: {
       generic: { name: "Perspectiva general", prompt: MARCAS_GENERIC }
     }
@@ -261,33 +263,32 @@ function AreaCard({ areaId, area, selected, onToggle }) {
   var isYellow = area.color === YELLOW;
   return (
     <div style={{
-      borderBottom: "1px solid " + BORDER,
-      background: BLACK,
+      borderBottom: "1px solid " + BORDER_SOFT,
+      background: BG,
     }}>
       <div style={{
-        padding: "10px 0",
+        padding: "12px 0",
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        borderBottom: "1px solid #181818",
+        gap: 12,
       }}>
         <span style={{
-          color: area.color,
-          fontSize: 13,
+          color: isYellow ? "#C9A300" : BLACK,
+          fontSize: 15,
           fontFamily: "'JetBrains Mono', monospace",
-          minWidth: 20,
+          minWidth: 22,
           textAlign: "center",
         }}>{area.icon}</span>
         <span style={{
           fontWeight: 900,
-          color: area.color,
-          fontSize: 10,
+          color: BLACK,
+          fontSize: 12,
           fontFamily: "'JetBrains Mono', monospace",
           textTransform: "uppercase",
           letterSpacing: "0.22em",
         }}>{area.name}</span>
       </div>
-      <div style={{ paddingLeft: 30, paddingTop: 6, paddingBottom: 8, display: "flex", flexDirection: "column", gap: 3 }}>
+      <div style={{ paddingLeft: 34, paddingBottom: 10, display: "flex", flexDirection: "column", gap: 4 }}>
         {memberIds.map(function(memberId) {
           var member = area.members[memberId];
           var key = selectionKey(areaId, memberId);
@@ -296,32 +297,30 @@ function AreaCard({ areaId, area, selected, onToggle }) {
             <button key={memberId} onClick={function() { onToggle(key); }} style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
-              padding: "9px 12px",
+              gap: 14,
+              padding: "11px 14px",
               border: "none",
-              borderLeft: isOn ? "3px solid " + area.color : "3px solid transparent",
-              borderRadius: 0,
-              background: isOn ? (isYellow ? YELLOW + "12" : "#ffffff08") : "transparent",
+              borderLeft: isOn ? "3px solid " + (isYellow ? YELLOW : BLACK) : "3px solid transparent",
+              background: isOn ? (isYellow ? YELLOW + "1f" : "#f3f3ee") : "transparent",
               cursor: "pointer",
               textAlign: "left",
               width: "100%",
               transition: "all 0.1s",
             }}>
               <span style={{
-                width: 12,
-                height: 12,
-                border: isOn ? "none" : "1.5px solid #333",
-                background: isOn ? area.color : "transparent",
+                width: 14,
+                height: 14,
+                border: isOn ? "none" : "1.5px solid #999",
+                background: isOn ? (isYellow ? YELLOW : BLACK) : "transparent",
                 display: "inline-block",
                 flexShrink: 0,
               }} />
               <span style={{
-                color: isOn ? (isYellow ? YELLOW : WHITE) : TEXT_DIM,
-                fontWeight: isOn ? 700 : 400,
-                fontSize: 13,
+                color: isOn ? BLACK : "#444",
+                fontWeight: isOn ? 700 : 500,
+                fontSize: 15,
                 fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: "0.03em",
-                transition: "color 0.1s",
+                letterSpacing: "0.02em",
               }}>{member.name}</span>
             </button>
           );
@@ -333,11 +332,12 @@ function AreaCard({ areaId, area, selected, onToggle }) {
 
 function MessageBubble({ role, text, color }) {
   var isYellow = color === YELLOW;
+  var accent = isYellow ? YELLOW : BLACK;
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div style={{ marginBottom: 26 }}>
       <div style={{
-        fontSize: 9,
-        color: role === "user" ? TEXT_MUTED : (isYellow ? YELLOW : "#aaa"),
+        fontSize: 10,
+        color: role === "user" ? TEXT_MUTED : (isYellow ? "#A88A00" : BLACK),
         marginBottom: 8,
         fontFamily: "'JetBrains Mono', monospace",
         textTransform: "uppercase",
@@ -345,18 +345,18 @@ function MessageBubble({ role, text, color }) {
         fontWeight: 700,
       }}>{role === "user" ? "Tú" : "Twin"}</div>
       <div style={{
-        padding: "16px 20px",
-        background: role === "user" ? GRAY2 : BLACK,
-        borderLeft: role === "user" ? "3px solid #222" : "3px solid " + color,
-        color: role === "user" ? "#666" : "#ddd",
-        fontSize: 14,
+        padding: "18px 22px",
+        background: role === "user" ? "#f5f5f0" : SURFACE,
+        borderLeft: role === "user" ? "3px solid #ccc" : "3px solid " + accent,
+        color: role === "user" ? "#333" : "#1a1a1a",
+        fontSize: 16,
         lineHeight: 1.85,
         fontFamily: "'Georgia', 'Times New Roman', serif",
         whiteSpace: "pre-wrap",
       }}>
         {text.split(/(\*\*[^*]+\*\*)/).map(function(part, i) {
           if (part.startsWith("**") && part.endsWith("**"))
-            return <strong key={i} style={{ color: color, fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+            return <strong key={i} style={{ color: BLACK, fontWeight: 700, background: isYellow ? YELLOW + "55" : "transparent", padding: isYellow ? "0 3px" : 0 }}>{part.slice(2, -2)}</strong>;
           return <span key={i}>{part}</span>;
         })}
       </div>
@@ -380,66 +380,66 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
 
   var visible = (conversation || []).filter(function(m) { return m.display !== false; });
   var isYellow = area.color === YELLOW;
+  var accent = isYellow ? YELLOW : BLACK;
 
   return (
     <div style={{
       border: "1px solid " + BORDER,
-      background: BLACK,
-      marginBottom: 28,
+      background: BG,
+      marginBottom: 32,
     }}>
-      {/* Header con bloque amarillo de acento */}
       <div style={{
-        padding: "16px 22px",
+        padding: "18px 24px",
         borderBottom: "1px solid " + BORDER,
         display: "flex",
         alignItems: "center",
-        gap: 16,
-        background: GRAY2,
+        gap: 18,
+        background: SURFACE,
       }}>
         <div style={{
-          width: 4,
-          height: 36,
-          background: area.color,
+          width: 5,
+          height: 40,
+          background: accent,
           flexShrink: 0,
         }} />
         <div>
           <div style={{
             fontWeight: 900,
-            color: WHITE,
-            fontSize: 15,
+            color: BLACK,
+            fontSize: 17,
             fontFamily: "'JetBrains Mono', monospace",
             letterSpacing: "0.04em",
             textTransform: "uppercase",
           }}>{member.name}</div>
           <div style={{
-            color: area.color,
-            fontSize: 9,
+            color: isYellow ? "#A88A00" : BLACK,
+            fontSize: 10,
             fontFamily: "'JetBrains Mono', monospace",
             textTransform: "uppercase",
             letterSpacing: "0.2em",
-            marginTop: 3,
+            marginTop: 4,
           }}>{area.name}</div>
         </div>
       </div>
 
-      <div style={{ padding: "22px 22px 8px", maxHeight: 540, overflowY: "auto" }}>
+      <div style={{ padding: "24px 24px 8px", maxHeight: 580, overflowY: "auto" }}>
         {visible.map(function(msg, i) {
           return <MessageBubble key={i} role={msg.role} text={msg.text} color={area.color} />;
         })}
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0 16px" }}>
             <div style={{
-              width: 12,
-              height: 12,
-              border: "2px solid " + BORDER,
-              borderTopColor: area.color,
+              width: 13,
+              height: 13,
+              border: "2px solid #ddd",
+              borderTopColor: accent,
               borderRadius: "50%",
               animation: "spin 0.7s linear infinite",
               flexShrink: 0,
             }} />
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
+              fontSize: 12,
               color: TEXT_MUTED,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
@@ -450,7 +450,7 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
       </div>
 
       {visible.length > 0 && !loading && (
-        <div style={{ padding: "12px 22px 18px", borderTop: "1px solid " + BORDER, display: "flex", gap: 0 }}>
+        <div style={{ padding: "14px 24px 20px", borderTop: "1px solid " + BORDER_SOFT, display: "flex", gap: 0 }}>
           <input
             value={reply}
             onChange={function(e) { setReply(e.target.value); }}
@@ -459,12 +459,12 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
             disabled={sending}
             style={{
               flex: 1,
-              padding: "11px 16px",
-              background: GRAY2,
+              padding: "12px 16px",
+              background: BG,
               border: "1px solid " + BORDER,
               borderRight: "none",
-              color: "#bbb",
-              fontSize: 13,
+              color: BLACK,
+              fontSize: 14,
               fontFamily: "'JetBrains Mono', monospace",
             }}
           />
@@ -472,15 +472,14 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
             onClick={handleReply}
             disabled={!reply.trim() || sending}
             style={{
-              padding: "11px 20px",
-              background: reply.trim() && !sending ? YELLOW : GRAY,
-              color: reply.trim() && !sending ? BLACK : TEXT_MUTED,
-              border: "1px solid " + (reply.trim() && !sending ? YELLOW : BORDER),
-              fontSize: 14,
+              padding: "12px 22px",
+              background: reply.trim() && !sending ? YELLOW : "#eee",
+              color: reply.trim() && !sending ? BLACK : "#999",
+              border: "1px solid " + (reply.trim() && !sending ? YELLOW : "#ddd"),
+              fontSize: 16,
               fontWeight: 900,
               cursor: sending ? "wait" : "pointer",
               fontFamily: "'JetBrains Mono', monospace",
-              transition: "all 0.1s",
             }}>→</button>
         </div>
       )}
@@ -518,32 +517,31 @@ function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
           onDrop={function(e) { e.preventDefault(); setDragging(false); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) readFile(f); }}
           onClick={function() { if (inputRef.current) inputRef.current.click(); }}
           style={{
-            border: "1px dashed " + (dragging ? "#555" : BORDER),
-            padding: "22px 16px",
+            border: "1px dashed " + (dragging ? BLACK : "#bbb"),
+            padding: "24px 16px",
             textAlign: "center",
             cursor: "pointer",
-            background: dragging ? GRAY2 : "transparent",
-            transition: "all 0.1s",
+            background: dragging ? SURFACE : BG,
           }}>
           <input ref={inputRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp" style={{ display: "none" }} onChange={function(e) { var f = e.target.files && e.target.files[0]; if (f) readFile(f); }} />
           {processing
-            ? <p style={{ color: TEXT_MUTED, fontSize: 11, margin: 0, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>Leyendo...</p>
+            ? <p style={{ color: TEXT_DIM, fontSize: 12, margin: 0, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>Leyendo...</p>
             : <>
-                <p style={{ color: TEXT_MUTED, fontSize: 11, margin: "0 0 4px", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>Arrastrá o hacé clic para adjuntar</p>
-                <p style={{ color: "#2a2a2a", fontSize: 10, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>.pdf .docx .pptx .txt .md .png .jpg</p>
+                <p style={{ color: TEXT_DIM, fontSize: 12, margin: "0 0 4px", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>Arrastrá o hacé clic para adjuntar</p>
+                <p style={{ color: TEXT_MUTED, fontSize: 11, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>.pdf .docx .pptx .txt .md .png .jpg</p>
               </>}
         </div>
       ) : (
-        <div style={{ background: GRAY2, border: "1px solid " + BORDER, overflow: "hidden" }}>
-          {imagePreview && <img src={imagePreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "contain", display: "block", background: BLACK }} />}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
-            <span style={{ color: TEXT_MUTED, fontSize: 13 }}>{imagePreview ? "▣" : "▤"}</span>
-            <span style={{ color: TEXT_DIM, fontSize: 11, fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>
-            <button onClick={onClear} style={{ background: "none", border: "1px solid " + BORDER, color: TEXT_MUTED, fontSize: 10, padding: "3px 10px", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}>✕</button>
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER_SOFT, overflow: "hidden" }}>
+          {imagePreview && <img src={imagePreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "contain", display: "block", background: BG }} />}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px" }}>
+            <span style={{ color: BLACK, fontSize: 14 }}>{imagePreview ? "▣" : "▤"}</span>
+            <span style={{ color: TEXT_DIM, fontSize: 13, fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>
+            <button onClick={onClear} style={{ background: "none", border: "1px solid " + BORDER_SOFT, color: TEXT_DIM, fontSize: 11, padding: "4px 12px", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}>✕</button>
           </div>
         </div>
       )}
-      {error && <p style={{ color: "#cc3333", fontSize: 11, marginTop: 6, fontFamily: "'JetBrains Mono', monospace" }}>{error}</p>}
+      {error && <p style={{ color: "#cc3333", fontSize: 12, marginTop: 6, fontFamily: "'JetBrains Mono', monospace" }}>{error}</p>}
     </div>
   );
 }
@@ -631,66 +629,68 @@ export default function Home() {
   var canRun = !running && hasContent && selected.length > 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: BLACK, color: WHITE, fontFamily: "'Georgia', serif" }}>
+    <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Georgia', serif" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        textarea:focus, input:focus { outline: none !important; border-color: #F5C500 !important; }
-        textarea::placeholder, input::placeholder { color: #2a2a2a; }
+        textarea:focus, input:focus { outline: none !important; border-color: #0a0a0a !important; }
+        textarea::placeholder, input::placeholder { color: #aaa; }
         * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #222; }
+        ::-webkit-scrollbar-thumb { background: #ccc; }
+        body { background: #ffffff; }
       `}</style>
 
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px 80px" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 28px 100px" }}>
 
         {/* ── HEADER ── */}
-        <div style={{ borderBottom: "1px solid " + BORDER, paddingTop: 52, paddingBottom: 36, marginBottom: 44 }}>
+        <div style={{ borderBottom: "2px solid " + BLACK, paddingTop: 64, paddingBottom: 44, marginBottom: 52 }}>
 
-          {/* Línea superior amarilla */}
-          <div style={{ width: 48, height: 4, background: YELLOW, marginBottom: 28 }} />
+          <div style={{ width: 56, height: 5, background: YELLOW, marginBottom: 32 }} />
 
           <h1 style={{
-            fontSize: 72,
+            fontSize: 92,
             fontWeight: 900,
-            margin: "0 0 4px",
+            margin: "0",
             letterSpacing: "-0.04em",
             fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-            color: WHITE,
-            lineHeight: 0.95,
+            color: BLACK,
+            lineHeight: 0.92,
           }}>SPARRING</h1>
+
+          <p style={{
+            fontSize: 22,
+            color: BLACK,
+            margin: "20px 0 0",
+            fontFamily: "'Georgia', serif",
+            fontStyle: "italic",
+            lineHeight: 1.4,
+            fontWeight: 400,
+          }}>Conversa con tus líderes.</p>
 
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 11,
-            color: YELLOW,
+            fontSize: 12,
+            color: TEXT_DIM,
             letterSpacing: "0.25em",
             textTransform: "uppercase",
-            marginTop: 14,
-            marginBottom: 20,
+            marginTop: 24,
+            marginBottom: 24,
           }}>Fahrenheit DDB</div>
-
-          <p style={{
-            color: TEXT_DIM,
-            fontSize: 14,
-            margin: "0 0 20px",
-            fontFamily: "'Georgia', serif",
-            lineHeight: 1.6,
-            maxWidth: 480,
-          }}>Conversa con tus líderes antes de llegar al cliente.</p>
 
           {/* Disclaimer */}
           <div style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 10,
-            border: "1px solid " + BORDER,
-            padding: "8px 14px",
+            gap: 12,
+            border: "1px solid " + BLACK,
+            padding: "10px 16px",
+            background: BG,
           }}>
-            <div style={{ width: 6, height: 6, background: YELLOW, flexShrink: 0 }} />
+            <div style={{ width: 8, height: 8, background: YELLOW, flexShrink: 0 }} />
             <span style={{
-              color: TEXT_MUTED,
-              fontSize: 11,
+              color: BLACK,
+              fontSize: 12,
               fontFamily: "'JetBrains Mono', monospace",
               letterSpacing: "0.05em",
             }}>Herramienta compartida · Límite de 1,000 consultas por día entre todos los usuarios</span>
@@ -698,17 +698,17 @@ export default function Home() {
         </div>
 
         {/* ── PANEL ── */}
-        <div style={{ marginBottom: 36 }}>
+        <div style={{ marginBottom: 44 }}>
           <div style={{
-            fontSize: 9,
-            color: TEXT_MUTED,
-            fontWeight: 700,
-            letterSpacing: "0.25em",
+            fontSize: 11,
+            color: BLACK,
+            fontWeight: 900,
+            letterSpacing: "0.28em",
             textTransform: "uppercase",
             fontFamily: "'JetBrains Mono', monospace",
-            marginBottom: 14,
+            marginBottom: 18,
           }}>Panel</div>
-          <div style={{ border: "1px solid " + BORDER }}>
+          <div style={{ borderTop: "2px solid " + BLACK, borderBottom: "2px solid " + BLACK }}>
             {Object.entries(TEAM).map(function(entry) {
               return <AreaCard key={entry[0]} areaId={entry[0]} area={entry[1]} selected={selected} onToggle={toggleTwin} />;
             })}
@@ -716,15 +716,15 @@ export default function Home() {
         </div>
 
         {/* ── PREGUNTA ── */}
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 20 }}>
           <div style={{
-            fontSize: 9,
-            color: TEXT_MUTED,
-            fontWeight: 700,
-            letterSpacing: "0.25em",
+            fontSize: 11,
+            color: BLACK,
+            fontWeight: 900,
+            letterSpacing: "0.28em",
             textTransform: "uppercase",
             fontFamily: "'JetBrains Mono', monospace",
-            marginBottom: 10,
+            marginBottom: 12,
           }}>Tu pregunta</div>
           <textarea
             value={question}
@@ -733,11 +733,11 @@ export default function Home() {
             rows={4}
             style={{
               width: "100%",
-              padding: "14px 16px",
-              background: GRAY2,
-              border: "1px solid " + BORDER,
-              color: "#ccc",
-              fontSize: 14,
+              padding: "16px 18px",
+              background: BG,
+              border: "1px solid " + BLACK,
+              color: BLACK,
+              fontSize: 16,
               lineHeight: 1.7,
               fontFamily: "'Georgia', serif",
               resize: "vertical",
@@ -746,16 +746,16 @@ export default function Home() {
         </div>
 
         {/* ── ADJUNTO ── */}
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 36 }}>
           {!showAttach && !fileName && deliverable.trim().length === 0 ? (
             <button
               onClick={function() { setShowAttach(true); }}
               style={{
-                background: "none",
-                border: "1px dashed " + BORDER,
-                padding: "10px 14px",
-                color: TEXT_MUTED,
-                fontSize: 11,
+                background: BG,
+                border: "1px dashed #bbb",
+                padding: "12px 16px",
+                color: TEXT_DIM,
+                fontSize: 12,
                 fontFamily: "'JetBrains Mono', monospace",
                 cursor: "pointer",
                 width: "100%",
@@ -767,15 +767,15 @@ export default function Home() {
           ) : (
             <div>
               <div style={{
-                fontSize: 9,
-                color: TEXT_MUTED,
-                fontWeight: 700,
-                letterSpacing: "0.25em",
+                fontSize: 11,
+                color: BLACK,
+                fontWeight: 900,
+                letterSpacing: "0.28em",
                 textTransform: "uppercase",
                 fontFamily: "'JetBrains Mono', monospace",
-                marginBottom: 10,
-              }}>Material de referencia <span style={{ color: "#2a2a2a" }}>(opcional)</span></div>
-              <div style={{ marginBottom: 8 }}>
+                marginBottom: 12,
+              }}>Material de referencia <span style={{ color: TEXT_MUTED, fontWeight: 400 }}>(opcional)</span></div>
+              <div style={{ marginBottom: 10 }}>
                 <FileUpload onFileContent={handleFileContent} fileName={fileName} onClear={clearFile} imagePreview={imageData ? imageData.preview : null} />
               </div>
               {!fileName && (
@@ -786,11 +786,11 @@ export default function Home() {
                   rows={5}
                   style={{
                     width: "100%",
-                    padding: "14px 16px",
-                    background: GRAY2,
-                    border: "1px solid " + BORDER,
-                    color: "#ccc",
-                    fontSize: 13,
+                    padding: "16px 18px",
+                    background: BG,
+                    border: "1px solid " + BLACK,
+                    color: BLACK,
+                    fontSize: 15,
                     lineHeight: 1.7,
                     resize: "vertical",
                     fontFamily: "'Georgia', serif",
@@ -807,22 +807,22 @@ export default function Home() {
           disabled={!canRun}
           style={{
             width: "100%",
-            padding: "18px 0",
-            fontSize: 13,
+            padding: "20px 0",
+            fontSize: 14,
             fontWeight: 900,
             fontFamily: "'JetBrains Mono', monospace",
-            background: canRun ? YELLOW : GRAY,
-            color: canRun ? BLACK : TEXT_MUTED,
-            border: "none",
+            background: canRun ? YELLOW : "#f0f0eb",
+            color: canRun ? BLACK : "#aaa",
+            border: "2px solid " + (canRun ? BLACK : "#ddd"),
             cursor: canRun ? "pointer" : "default",
-            letterSpacing: "0.16em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
             transition: "all 0.1s",
           }}
         >{running ? "Consultando..." : "Preguntar → " + selected.length + " twin" + (selected.length !== 1 ? "s" : "")}</button>
 
         {/* ── RESULTADOS ── */}
-        <div ref={resultsRef} style={{ marginTop: 56 }}>
+        <div ref={resultsRef} style={{ marginTop: 64 }}>
           {selected.map(function(key) {
             if (!conversations[key] && !loading[key]) return null;
             var parsed = parseKey(key);
@@ -844,16 +844,17 @@ export default function Home() {
 
         {Object.keys(conversations).length > 0 && !running && (
           <div style={{
-            marginTop: 8,
-            padding: "12px 16px",
-            border: "1px solid " + BORDER,
+            marginTop: 12,
+            padding: "14px 18px",
+            border: "1px solid " + BORDER_SOFT,
+            background: SURFACE,
           }}>
             <p style={{
-              color: TEXT_MUTED,
-              fontSize: 10,
+              color: TEXT_DIM,
+              fontSize: 11,
               margin: 0,
               fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.06em",
+              letterSpacing: "0.08em",
               textTransform: "uppercase",
             }}>Cada twin mantiene su propia conversación. Podés profundizar, cuestionar o pedir alternativas.</p>
           </div>
