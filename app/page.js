@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 
 var FORMAT_HARD = "\n\n###REGLAS DE FORMATO — OBLIGATORIAS — NO NEGOCIABLES###\nResponde ÚNICAMENTE en prosa corrida. Cero bullets. Cero headers. Cero numeración. Cero negritas. Cero 'Evaluación:', 'Conclusión:', 'Sugerencia:', 'Opinión General:' ni ningún subtítulo. Máximo 150 palabras. Si la pregunta es corta, responde en 2-3 oraciones. No abras con 'Entonces', 'Claro', 'Mira', 'Pues', 'Entiendo que', 'Interesante', ni parafraseando la pregunta. No cierres con síntesis, moraleja, pregunta de seguimiento ni oferta de ayuda. No presentes tu respuesta — simplemente responde. Escribe como una persona real habla en una reunión, no como un reporte.";
 
-var META_TAG = "\n\n###EXCEPCIÓN ÚNICA — MARCADOR DE SISTEMA###\nDespués de tu respuesta, en una línea final separada, escribe exactamente este marcador: [CONFIANZA: alta | razón] o [CONFIANZA: media | razón] o [CONFIANZA: baja | razón]. La razón: máximo 10 palabras explicando por qué ese nivel (contexto suficiente, falta el brief, fuera de tu terreno, etc.). El sistema procesa y oculta este marcador — no cuenta como parte de tu respuesta ni rompe las reglas de formato. Además: si hay MATERIAL DE REFERENCIA con marcadores [Slide N] o [Página N] y un punto tuyo se apoya en una parte específica del material, citala entre paréntesis, ej: (Slide 8) — solo cuando realmente respalde el punto, nunca por obligación.";
+var META_TAG = "\n\n###EXCEPCIÓN ÚNICA — MARCADOR DE SISTEMA###\nDespués de tu respuesta, en una línea final separada, escribe exactamente este marcador: [CONFIANZA: alta | razón] o [CONFIANZA: media | razón] o [CONFIANZA: baja | razón]. La razón: máximo 10 palabras explicando por qué ese nivel (contexto suficiente, falta el brief, fuera de tu terreno, etc.). El sistema procesa y oculta este marcador — no cuenta como parte de tu respuesta ni rompe las reglas de formato. Además: si hay MATERIAL DE REFERENCIA con marcadores [Slide N] o [Página N] y un punto tuyo se apoya en una parte específica del material, citala entre paréntesis, ej: (Slide 8) — solo cuando realmente respalde el punto, nunca por obligación. Si en la conversación aparecen intervenciones de otras personas marcadas con su nombre, es una mesa de discusión: reaccioná con tu propio criterio, podés coincidir o discrepar con ellas, pero nunca las repitas ni hables por ellas.";
 
 var RICARDO_PROMPT = `Eres Ricardo Chadwick, Richy para los que te conocen. Socio Fundador y CCO de Fahrenheit DDB Perú. Empezaste en JWT Lima en 1992. Pasaste por Pragma D'Arcy como director creativo general. Viviste siete años en Italia trabajando en BGS D'Arcy y Red Cell Milán. En 2009 fundaste Fahrenheit con Alberto Goachet. Llevas más de 30 años en el oficio. 11+ Cannes Lions traídos al Perú, dos Oros, un Innovation Lion. Dos veces mejor director de cine publicitario de Perú en El Ojo. Estudiaste en Markham College Lima. Hiciste un minor en literatura en Estados Unidos. Terminaste hace poco un máster en literatura en España. Estás escribiendo ficción.
 
@@ -206,6 +206,22 @@ function initials(name) {
 function selectionKey(area, member) { return area + ":" + member; }
 function parseKey(key) { var p = key.split(":"); return { area: p[0], member: p[1] }; }
 
+function twinInfo(key) {
+  var p = parseKey(key);
+  var area = TEAM[p.area];
+  var member = area && area.members[p.member];
+  if (!member) return null;
+  var displayName = member.name === "Perspectiva general" ? member.name + " (" + area.name + ")" : member.name;
+  return { key: key, area: area, member: member, displayName: displayName };
+}
+
+function convTitle(conv) {
+  return conv.twinKeys.map(function(k) {
+    var info = twinInfo(k);
+    return info ? info.displayName : k;
+  }).join(" + ");
+}
+
 function fmtTime(ts) {
   var d = new Date(ts);
   var now = new Date();
@@ -230,6 +246,37 @@ function parseConfidence(text) {
     result.clean = text.replace(match[0], "").trim();
   }
   return result;
+}
+
+// Construye el hilo de mensajes desde la perspectiva de un twin específico.
+// Sus propias respuestas van como "assistant"; las de otros twins van como
+// contexto de usuario con su nombre, para que pueda reaccionar a ellas.
+function buildApiMessages(messages, twinKey, multi) {
+  var out = [];
+  function push(role, content) {
+    if (out.length > 0 && out[out.length - 1].role === role) {
+      out[out.length - 1].content += "\n\n" + content;
+    } else {
+      out.push({ role: role, content: content });
+    }
+  }
+  for (var i = 0; i < messages.length; i++) {
+    var m = messages[i];
+    if (m.role === "user") {
+      var content = m.apiContent || m.text;
+      if (i === 0 && multi) {
+        content = "(Estás en una mesa de discusión con otras personas del equipo. Sus intervenciones aparecen marcadas con su nombre. Reaccioná con tu propio criterio — podés coincidir o discrepar, pero no repitas lo que ya dijeron.)\n\n" + content;
+      }
+      push("user", content);
+    } else if (m.twinKey === twinKey) {
+      push("assistant", m.text);
+    } else {
+      var info = twinInfo(m.twinKey);
+      var label = info ? info.member.name + " (" + info.area.name + ")" : "Otro participante";
+      push("user", label + ": " + m.text);
+    }
+  }
+  return out;
 }
 
 // ─── FILE EXTRACTION (con marcadores de página/slide para referencias) ──────
@@ -326,6 +373,30 @@ function Avatar({ name, size, dark }) {
   );
 }
 
+function AvatarStack({ names, size }) {
+  var s = size || 34;
+  var shown = names.slice(0, 3);
+  return (
+    <div style={{ display: "flex", flexShrink: 0 }}>
+      {shown.map(function(n, i) {
+        return (
+          <div key={i} style={{ marginLeft: i === 0 ? 0 : -(s * 0.32), zIndex: shown.length - i, border: "2px solid " + CARD, borderRadius: "50%" }}>
+            <Avatar name={n} size={s} dark />
+          </div>
+        );
+      })}
+      {names.length > 3 && (
+        <div style={{
+          marginLeft: -(s * 0.32), zIndex: 0, width: s + 4, height: s + 4,
+          borderRadius: "50%", background: SURFACE, border: "2px solid " + CARD,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 10, fontFamily: MONO, fontWeight: 700, color: TEXT_DIM,
+        }}>+{names.length - 3}</div>
+      )}
+    </div>
+  );
+}
+
 function Eyebrow({ children, style }) {
   return (
     <div style={Object.assign({
@@ -361,12 +432,20 @@ function ConfidenceBadge({ level, reason }) {
   );
 }
 
-function MessageBubble({ msg, name }) {
+function MessageBubble({ msg, showSpeaker }) {
   var isUser = msg.role === "user";
+  var info = !isUser ? twinInfo(msg.twinKey) : null;
+  var speakerName = info ? info.member.name : "Twin";
   return (
     <div className="fa-msg" style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", gap: 10, marginBottom: 6 }}>
-      {!isUser && <Avatar name={name} size={32} dark />}
+      {!isUser && <Avatar name={speakerName} size={32} dark />}
       <div style={{ maxWidth: "78%" }}>
+        {!isUser && showSpeaker && info && (
+          <div style={{ fontSize: 11, fontFamily: MONO, color: TEXT_DIM, marginBottom: 4, paddingLeft: 2 }}>
+            <span style={{ fontWeight: 700, color: INK }}>{info.member.name}</span>
+            <span style={{ color: TEXT_MUTED }}> · {info.area.name}</span>
+          </div>
+        )}
         <div style={{
           padding: "14px 18px",
           background: isUser ? YELLOW_SOFT : CARD,
@@ -397,20 +476,30 @@ function MessageBubble({ msg, name }) {
   );
 }
 
-// ─── VISTA CHAT (pantalla completa) ──────────────────────────────────────────
-function ChatView({ conv, pending, onBack, onSend }) {
-  var parsed = parseKey(conv.twinKey);
-  var area = TEAM[parsed.area];
-  var member = area.members[parsed.member];
+// ─── VISTA CHAT (pantalla completa, multi-twin) ──────────────────────────────
+function ChatView({ conv, typingTwinKey, onBack, onSend, onAddTwin }) {
+  var participants = conv.twinKeys.map(twinInfo).filter(Boolean);
+  var multi = conv.twinKeys.length > 1;
+  var pending = !!typingTwinKey;
+  var typingInfo = typingTwinKey ? twinInfo(typingTwinKey) : null;
 
   var replyState = useState(""); var reply = replyState[0]; var setReply = replyState[1];
-  var fileState = useState(null); var attach = fileState[0]; var setAttach = fileState[1]; // {name, text} o {name, image:{base64,mime}}
+  var fileState = useState(null); var attach = fileState[0]; var setAttach = fileState[1];
   var analyzingState = useState(false); var analyzing = analyzingState[0]; var setAnalyzing = analyzingState[1];
+  var addState = useState(false); var showAdd = addState[0]; var setShowAdd = addState[1];
   var inputRef = useRef(null);
   var fileRef = useRef(null);
   var endRef = useRef(null);
 
-  useEffect(function() { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [conv.messages, pending]);
+  useEffect(function() { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [conv.messages, typingTwinKey]);
+
+  var availableTwins = [];
+  Object.keys(TEAM).forEach(function(areaId) {
+    Object.keys(TEAM[areaId].members).forEach(function(memberId) {
+      var key = selectionKey(areaId, memberId);
+      if (conv.twinKeys.indexOf(key) === -1) availableTwins.push(twinInfo(key));
+    });
+  });
 
   var pickFile = async function(f) {
     if (!f) return;
@@ -439,7 +528,7 @@ function ChatView({ conv, pending, onBack, onSend }) {
 
   return (
     <div style={{ paddingTop: 28, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 120px)" }}>
-      {/* Header del chat */}
+      {/* Barra superior */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 20, borderBottom: "1px solid " + BORDER }}>
         <button onClick={onBack} className="fa-hover" style={{
           width: 40, height: 40, borderRadius: "50%", border: "1px solid " + BORDER,
@@ -447,24 +536,82 @@ function ChatView({ conv, pending, onBack, onSend }) {
           display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
         }}>←</button>
         <div style={{ width: 1, height: 28, background: BORDER }} />
-        <span style={{ fontSize: 10, fontFamily: MONO, color: TEXT_MUTED, letterSpacing: "0.22em", textTransform: "uppercase" }}>{area.name}</span>
+        <span style={{ fontSize: 10, fontFamily: MONO, color: TEXT_MUTED, letterSpacing: "0.22em", textTransform: "uppercase" }}>
+          {multi ? "Mesa de discusión" : participants[0] ? participants[0].area.name : ""}
+        </span>
         <div style={{ flex: 1 }} />
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "22px 0", borderBottom: "1px solid " + BORDER, marginBottom: 26 }}>
-        <Avatar name={member.name} size={54} dark />
-        <div>
-          <div style={{ fontWeight: 800, fontSize: 19, color: INK, fontFamily: SANS }}>{member.name}</div>
-          <div style={{ fontSize: 12.5, color: TEXT_MUTED, fontFamily: SANS, marginTop: 3 }}>Conversación iniciada {fmtTime(conv.startedAt)}</div>
+      {/* Encabezado: participantes + agregar twin */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "22px 0", borderBottom: "1px solid " + BORDER, marginBottom: 26, position: "relative" }}>
+        <AvatarStack names={participants.map(function(p) { return p.member.name; })} size={multi ? 44 : 54} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: multi ? 16.5 : 19, color: INK, fontFamily: SANS, lineHeight: 1.35 }}>{convTitle(conv)}</div>
+          <div style={{ fontSize: 12.5, color: TEXT_MUTED, fontFamily: SANS, marginTop: 3 }}>
+            {participants.length} participante{participants.length !== 1 ? "s" : ""} · Conversación iniciada {fmtTime(conv.startedAt)}
+          </div>
         </div>
+        <button
+          onClick={function() { setShowAdd(!showAdd); }}
+          disabled={pending || availableTwins.length === 0}
+          className="fa-hover"
+          title="Agregar twin a la conversación"
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "9px 16px", borderRadius: 999,
+            border: "1px solid " + (showAdd ? INK : BORDER),
+            background: showAdd ? YELLOW_TINT : CARD,
+            cursor: (pending || availableTwins.length === 0) ? "default" : "pointer",
+            fontSize: 12.5, fontFamily: MONO, fontWeight: 700, color: INK,
+            flexShrink: 0, opacity: (pending || availableTwins.length === 0) ? 0.4 : 1,
+          }}>
+          <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> Agregar twin
+        </button>
+
+        {/* Dropdown de twins disponibles */}
+        {showAdd && availableTwins.length > 0 && (
+          <div style={{
+            position: "absolute", top: "100%", right: 0, zIndex: 50,
+            background: CARD, border: "1px solid " + BORDER, borderRadius: 16,
+            boxShadow: "0 10px 36px rgba(20,20,20,0.14)", padding: 8,
+            width: 300, marginTop: 6,
+          }}>
+            {availableTwins.map(function(t) {
+              return (
+                <button key={t.key} className="fa-hover" onClick={function() { setShowAdd(false); onAddTwin(conv.id, t.key); }} style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  width: "100%", padding: "10px 12px", borderRadius: 10,
+                  border: "none", background: "transparent", cursor: "pointer", textAlign: "left",
+                }}>
+                  <Avatar name={t.member.name} size={34} dark />
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS }}>{t.member.name}</div>
+                    <div style={{ fontSize: 11, color: TEXT_MUTED, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 2 }}>{t.area.name}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Mensajes */}
       <div style={{ flex: 1 }}>
         {conv.messages.map(function(msg, i) {
-          return <MessageBubble key={i} msg={msg} name={member.name} />;
+          return <MessageBubble key={i} msg={msg} showSpeaker={true} />;
         })}
-        {pending && <div className="fa-msg" style={{ display: "flex", gap: 10, marginBottom: 12 }}><Avatar name={member.name} size={32} dark /><TypingDots /></div>}
+        {pending && typingInfo && (
+          <div className="fa-msg" style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+            <Avatar name={typingInfo.member.name} size={32} dark />
+            <div>
+              <div style={{ fontSize: 11, fontFamily: MONO, color: TEXT_DIM, marginBottom: 4, paddingLeft: 2 }}>
+                <span style={{ fontWeight: 700, color: INK }}>{typingInfo.member.name}</span>
+                <span style={{ color: TEXT_MUTED }}> está escribiendo...</span>
+              </div>
+              <TypingDots />
+            </div>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 
@@ -669,7 +816,7 @@ export default function Home() {
   var qState = useState(""); var question = qState[0]; var setQuestion = qState[1];
   var delState = useState(""); var deliverable = delState[0]; var setDeliverable = delState[1];
   var histState = useState([]); var history = histState[0]; var setHistory = histState[1];
-  var pendState = useState({}); var pending = pendState[0]; var setPending = pendState[1];
+  var typingState = useState({}); var typing = typingState[0]; var setTyping = typingState[1];
   var runState = useState(false); var running = runState[0]; var setRunning = runState[1];
   var attachState = useState(false); var showAttach = attachState[0]; var setShowAttach = attachState[1];
   var fnState = useState(null); var fileName = fnState[0]; var setFileName = fnState[1];
@@ -679,11 +826,25 @@ export default function Home() {
   var loadedRef = useRef(false);
   var askInputRef = useRef(null);
 
-  // Cargar historial de localStorage al montar
+  // Cargar historial de localStorage al montar (con migración de formato viejo)
   useEffect(function() {
     try {
       var raw = localStorage.getItem(LS_KEY);
-      if (raw) setHistory(JSON.parse(raw));
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        var migrated = parsed.map(function(c) {
+          if (!c.twinKeys && c.twinKey) {
+            return Object.assign({}, c, {
+              twinKeys: [c.twinKey],
+              messages: (c.messages || []).map(function(m) {
+                return (m.role === "assistant" && !m.twinKey) ? Object.assign({}, m, { twinKey: c.twinKey }) : m;
+              }),
+            });
+          }
+          return c;
+        });
+        setHistory(migrated);
+      }
     } catch (e) {}
     loadedRef.current = true;
   }, []);
@@ -720,6 +881,31 @@ export default function Home() {
     setFileName(name);
   };
 
+  // Hace responder a una lista de twins, en secuencia, sobre un hilo dado.
+  // Devuelve el hilo final con todas las respuestas agregadas.
+  var runTwins = async function(convId, twinKeys, thread, multi, img) {
+    for (var i = 0; i < twinKeys.length; i++) {
+      var key = twinKeys[i];
+      if (i > 0) {
+        await new Promise(function(resolve) { setTimeout(resolve, 20000); });
+      }
+      setTyping(function(prev) { var next = Object.assign({}, prev); next[convId] = key; return next; });
+      var info = twinInfo(key);
+      var apiMessages = buildApiMessages(thread, key, multi);
+      var raw = await callTwin(info.member.prompt, apiMessages, img ? img.base64 : null, img ? img.mime : null);
+      var parsedResp = parseConfidence(raw);
+      var ts = Date.now();
+      var asstMsg = { role: "assistant", twinKey: key, text: parsedResp.clean, confidence: parsedResp.level, confidenceReason: parsedResp.reason, ts: ts };
+      thread = thread.concat([asstMsg]);
+      var threadSnapshot = thread;
+      updateConv(convId, function(c) {
+        return Object.assign({}, c, { updatedAt: ts, messages: threadSnapshot });
+      });
+    }
+    setTyping(function(prev) { var next = Object.assign({}, prev); delete next[convId]; return next; });
+    return thread;
+  };
+
   var runEvaluation = async function() {
     if (!canRun) return;
     setRunning(true);
@@ -736,51 +922,28 @@ export default function Home() {
 
     var img = imageData;
     var fn = fileName;
-    var sel = selected.slice();
+    var twinKeys = selected.slice();
+    var multi = twinKeys.length > 1;
 
-    // Crear conversaciones nuevas por adelantado
-    var newConvs = sel.map(function(key, i) {
-      return {
-        id: key + "-" + now + "-" + i,
-        twinKey: key,
-        firstQuestion: q,
-        startedAt: now,
-        updatedAt: now,
-        messages: [{ role: "user", text: q, apiContent: userText, fileName: fn || null, ts: now }],
-      };
-    });
+    var conv = {
+      id: "conv-" + now,
+      twinKeys: twinKeys,
+      firstQuestion: q,
+      startedAt: now,
+      updatedAt: now,
+      messages: [{ role: "user", text: q, apiContent: userText, fileName: fn || null, ts: now }],
+    };
 
-    setHistory(function(prev) { return newConvs.concat(prev); });
-    var initPending = {};
-    newConvs.forEach(function(c) { initPending[c.id] = true; });
-    setPending(function(prev) { return Object.assign({}, prev, initPending); });
+    setHistory(function(prev) { return [conv].concat(prev); });
 
-    // Si es un solo twin, abrir el chat de inmediato
-    if (newConvs.length === 1) setView({ type: "chat", id: newConvs[0].id });
+    // Abrir el chat de inmediato — siempre
+    setView({ type: "chat", id: conv.id });
 
     // Limpiar formulario
     setQuestion(""); clearFile();
     if (askInputRef.current) askInputRef.current.style.height = "auto";
 
-    for (var i = 0; i < newConvs.length; i++) {
-      var conv = newConvs[i];
-      if (i > 0) {
-        await new Promise(function(resolve) { setTimeout(resolve, 20000); });
-      }
-      var parsed = parseKey(conv.twinKey);
-      var member = TEAM[parsed.area].members[parsed.member];
-      var msgs = [{ role: "user", content: userText }];
-      var raw = await callTwin(member.prompt, msgs, img ? img.base64 : null, img ? img.mime : null);
-      var parsedResp = parseConfidence(raw);
-      var ts = Date.now();
-      updateConv(conv.id, function(c) {
-        return Object.assign({}, c, {
-          updatedAt: ts,
-          messages: c.messages.concat([{ role: "assistant", text: parsedResp.clean, confidence: parsedResp.level, confidenceReason: parsedResp.reason, ts: ts }]),
-        });
-      });
-      setPending(function(prev) { var next = Object.assign({}, prev); delete next[conv.id]; return next; });
-    }
+    await runTwins(conv.id, twinKeys, conv.messages, multi, img);
     setRunning(false);
   };
 
@@ -799,25 +962,22 @@ export default function Home() {
 
     var ts = Date.now();
     var userMsg = { role: "user", text: text, apiContent: apiContent, fileName: attach ? attach.name : null, ts: ts };
-    var newMessages = conv.messages.concat([userMsg]);
+    var thread = conv.messages.concat([userMsg]);
 
-    updateConv(convId, function(c) { return Object.assign({}, c, { updatedAt: ts, messages: newMessages }); });
-    setPending(function(prev) { var next = Object.assign({}, prev); next[convId] = true; return next; });
+    updateConv(convId, function(c) { return Object.assign({}, c, { updatedAt: ts, messages: thread }); });
 
-    var parsed = parseKey(conv.twinKey);
-    var member = TEAM[parsed.area].members[parsed.member];
-    var apiMessages = newMessages.map(function(m) { return { role: m.role, content: m.apiContent || m.text }; });
+    await runTwins(convId, conv.twinKeys, thread, conv.twinKeys.length > 1, img);
+  };
 
-    var raw = await callTwin(member.prompt, apiMessages, img ? img.base64 : null, img ? img.mime : null);
-    var parsedResp = parseConfidence(raw);
-    var ts2 = Date.now();
-    updateConv(convId, function(c) {
-      return Object.assign({}, c, {
-        updatedAt: ts2,
-        messages: c.messages.concat([{ role: "assistant", text: parsedResp.clean, confidence: parsedResp.level, confidenceReason: parsedResp.reason, ts: ts2 }]),
-      });
-    });
-    setPending(function(prev) { var next = Object.assign({}, prev); delete next[convId]; return next; });
+  var handleAddTwin = async function(convId, newKey) {
+    var conv = history.find(function(c) { return c.id === convId; });
+    if (!conv || conv.twinKeys.indexOf(newKey) !== -1) return;
+
+    var newTwinKeys = conv.twinKeys.concat([newKey]);
+    updateConv(convId, function(c) { return Object.assign({}, c, { twinKeys: newTwinKeys }); });
+
+    // El twin nuevo lee todo el historial y responde de inmediato
+    await runTwins(convId, [newKey], conv.messages, true, null);
   };
 
   var deleteConv = function(id) {
@@ -830,11 +990,9 @@ export default function Home() {
 
   var filteredHistory = history.filter(function(c) {
     if (!search.trim()) return true;
-    var parsed = parseKey(c.twinKey);
-    var member = TEAM[parsed.area] && TEAM[parsed.area].members[parsed.member];
-    var name = member ? member.name : "";
+    var title = convTitle(c);
     var s = search.toLowerCase();
-    return name.toLowerCase().indexOf(s) !== -1 || (c.firstQuestion || "").toLowerCase().indexOf(s) !== -1;
+    return title.toLowerCase().indexOf(s) !== -1 || (c.firstQuestion || "").toLowerCase().indexOf(s) !== -1;
   }).sort(function(a, b) { return b.updatedAt - a.updatedAt; });
 
   return (
@@ -876,9 +1034,10 @@ export default function Home() {
           {view.type === "chat" && currentConv ? (
             <ChatView
               conv={currentConv}
-              pending={!!pending[currentConv.id]}
+              typingTwinKey={typing[currentConv.id] || null}
               onBack={function() { setView({ type: "home" }); }}
               onSend={handleSend}
+              onAddTwin={handleAddTwin}
             />
           ) : (
             <>
@@ -962,9 +1121,6 @@ export default function Home() {
                     transition: "transform 0.1s, background 0.15s",
                   }}>{running ? <div className="fa-spinner" style={{ borderTopColor: INK }} /> : "→"}</button>
                 </div>
-                <div style={{ fontSize: 11, color: TEXT_MUTED, fontFamily: MONO, marginTop: 8, paddingLeft: 6 }}>
-                  Se enviará a {selected.length} twin{selected.length !== 1 ? "s" : ""} · {running ? "consultando en secuencia..." : "las consultas van una por una para respetar el límite compartido"}
-                </div>
               </div>
 
               {/* ── PROMPTS SUGERIDOS ── */}
@@ -1027,11 +1183,8 @@ export default function Home() {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {filteredHistory.map(function(c) {
-                      var parsed = parseKey(c.twinKey);
-                      var area = TEAM[parsed.area];
-                      var member = area && area.members[parsed.member];
-                      if (!member) return null;
-                      var isPending = !!pending[c.id];
+                      var names = c.twinKeys.map(function(k) { var info = twinInfo(k); return info ? info.member.name : k; });
+                      var isPending = !!typing[c.id];
                       return (
                         <div key={c.id} className="fa-histitem" style={{
                           display: "flex", alignItems: "center", gap: 14,
@@ -1042,13 +1195,13 @@ export default function Home() {
                             display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0,
                             background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0,
                           }}>
-                            <Avatar name={member.name} size={36} dark />
+                            <AvatarStack names={names} size={34} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS }}>
-                                {member.name} <span style={{ fontWeight: 400, color: TEXT_MUTED, fontSize: 12 }}>· {area.name} · {fmtTime(c.updatedAt)}</span>
+                              <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {convTitle(c)}
                               </div>
                               <div style={{ fontSize: 12.5, color: TEXT_DIM, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
-                                {c.firstQuestion}
+                                {fmtTime(c.updatedAt)} · {c.firstQuestion}
                               </div>
                             </div>
                             {isPending ? <div className="fa-spinner" /> : <span style={{ color: TEXT_MUTED, fontSize: 15 }}>→</span>}
