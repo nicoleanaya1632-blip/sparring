@@ -121,24 +121,28 @@ Trabajás con el modelo de contenido ancla que se expande: una pieza grande (cam
 
 Cómo hablás: español con anglicismos técnicos cuando salen naturalmente (KPI, reach, engagement, funnel, content strategy, performance). Data-informed pero no frío — los números te importan para tomar decisiones, no para justificar lo que ya decidiste. Reaccionás como en una reunión real: a veces señalando el problema de plataforma que nadie mencionó, a veces con un dato específico que cambia la conversación, a veces con la pregunta de negocio que falta.` + FORMAT_HARD;
 
-// ─── COLORES — TEMA CLARO ─────────────────────────────────────────────────────
-var YELLOW = "#F5C500";
-var BLACK = "#0a0a0a";
-var WHITE = "#ffffff";
-var BG = "#ffffff";
-var SURFACE = "#fafaf7";
-var BORDER = "#1a1a1a";
-var BORDER_SOFT = "#e5e5e0";
-var TEXT = "#0a0a0a";
-var TEXT_DIM = "#555";
-var TEXT_MUTED = "#888";
+// ─── TOKENS — IDENTIDAD FAHREAI ──────────────────────────────────────────────
+var YELLOW = "#F2C230";
+var YELLOW_SOFT = "#FBEBBB";   // burbuja del usuario
+var YELLOW_TINT = "#FCF4DC";   // fondos suaves
+var INK = "#141414";           // sidebar / texto principal
+var PAGE_BG = "#ECEAE5";       // fondo de página
+var CARD = "#ffffff";
+var SURFACE = "#F8F7F4";
+var BORDER = "#E5E3DD";
+var TEXT = "#141414";
+var TEXT_DIM = "#5F5D57";
+var TEXT_MUTED = "#98968F";
+
+var MONO = "'JetBrains Mono', 'Courier New', monospace";
+var SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif";
 
 // ─── TEAM ────────────────────────────────────────────────────────────────────
 var TEAM = {
   direccion: {
     name: "Dirección",
+    desc: "Perspectiva estratégica y liderazgo.",
     icon: "★",
-    color: YELLOW,
     members: {
       ricardo: { name: "Ricardo Chadwick", prompt: RICARDO_PROMPT },
       alberto: { name: "Alberto Goachet", prompt: ALBERTO_PROMPT }
@@ -146,16 +150,16 @@ var TEAM = {
   },
   planning: {
     name: "Planning",
+    desc: "Planificación y estrategia de marca.",
     icon: "◈",
-    color: BLACK,
     members: {
       generic: { name: "Perspectiva general", prompt: PLANNING_GENERIC }
     }
   },
   creative: {
     name: "Creatividad",
+    desc: "Ideas que conectan y diferencian.",
     icon: "◐",
-    color: YELLOW,
     members: {
       generic: { name: "Perspectiva general", prompt: CREATIVE_GENERIC },
       sergio: { name: "Sergio Franco", prompt: SERGIO_PROMPT }
@@ -163,21 +167,29 @@ var TEAM = {
   },
   marcas: {
     name: "Marcas",
+    desc: "Construcción y gestión de marcas.",
     icon: "◇",
-    color: BLACK,
     members: {
       generic: { name: "Perspectiva general", prompt: MARCAS_GENERIC }
     }
   },
   digital: {
     name: "Digital",
+    desc: "Estrategia y ejecución digital.",
     icon: "◉",
-    color: YELLOW,
     members: {
       generic: { name: "Perspectiva general", prompt: DIGITAL_GENERIC }
     }
   }
 };
+
+function initials(name) {
+  if (name === "Perspectiva general") return "PG";
+  var parts = name.split(" ");
+  var a = parts[0] ? parts[0][0] : "";
+  var b = parts[1] ? parts[1][0] : "";
+  return (a + b).toUpperCase();
+}
 
 // ─── FILE EXTRACTION ─────────────────────────────────────────────────────────
 async function extractTextFromFile(file) {
@@ -258,47 +270,86 @@ function parseKey(key) { var p = key.split(":"); return { area: p[0], member: p[
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
 
-function AreaCard({ areaId, area, selected, onToggle, isLast, index }) {
-  var memberIds = Object.keys(area.members);
-  var isYellow = area.color === YELLOW;
-  var isEven = index % 2 === 0;
-  var cardBg = isEven ? "#fafaf7" : BG;
+function Avatar({ name, size, dark }) {
+  var s = size || 36;
   return (
     <div style={{
-      background: cardBg,
-      borderBottom: isLast ? "none" : "2px solid " + BORDER,
-      padding: "28px 24px 24px",
+      width: s,
+      height: s,
+      borderRadius: "50%",
+      background: dark ? INK : YELLOW,
+      color: dark ? "#fff" : INK,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: MONO,
+      fontWeight: 700,
+      fontSize: s * 0.34,
+      letterSpacing: "0.02em",
+      flexShrink: 0,
+    }}>{initials(name)}</div>
+  );
+}
+
+function Eyebrow({ children, style }) {
+  return (
+    <div style={Object.assign({
+      fontSize: 11,
+      color: TEXT_MUTED,
+      fontWeight: 700,
+      letterSpacing: "0.24em",
+      textTransform: "uppercase",
+      fontFamily: MONO,
+      marginBottom: 14,
+    }, style || {})}>{children}</div>
+  );
+}
+
+function AreaCard({ areaId, area, selected, onToggle }) {
+  var memberIds = Object.keys(area.members);
+  var anySelected = memberIds.some(function(m) { return selected.includes(selectionKey(areaId, m)); });
+  return (
+    <div style={{
+      border: "1px solid " + (anySelected ? INK : BORDER),
+      borderRadius: 16,
+      background: CARD,
+      padding: 18,
+      transition: "border-color 0.15s",
     }}>
-      {/* Header del área */}
       <div style={{
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        background: YELLOW_TINT,
+        border: "1px solid " + YELLOW,
         display: "flex",
         alignItems: "center",
-        gap: 12,
-        marginBottom: 16,
-        paddingBottom: 14,
-        borderBottom: "1px solid " + (isYellow ? YELLOW : BORDER_SOFT),
-      }}>
-        <span style={{
-          color: isYellow ? "#C9A300" : BLACK,
-          fontSize: 18,
-          fontFamily: "'JetBrains Mono', monospace",
-          lineHeight: 1,
-        }}>{area.icon}</span>
-        <span style={{
-          fontWeight: 900,
-          color: BLACK,
-          fontSize: 20,
-          fontFamily: "'JetBrains Mono', monospace",
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-          lineHeight: 1,
-        }}>{area.name}</span>
-        {isYellow && (
-          <div style={{ width: 8, height: 8, background: YELLOW, marginLeft: 4, flexShrink: 0 }} />
-        )}
-      </div>
+        justifyContent: "center",
+        fontSize: 18,
+        color: INK,
+        marginBottom: 12,
+        fontFamily: MONO,
+      }}>{area.icon}</div>
 
-      {/* Opciones */}
+      <div style={{
+        fontWeight: 800,
+        color: INK,
+        fontSize: 14,
+        fontFamily: MONO,
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        marginBottom: 4,
+      }}>{area.name}</div>
+
+      <div style={{
+        fontSize: 12.5,
+        color: TEXT_DIM,
+        fontFamily: SANS,
+        lineHeight: 1.45,
+        marginBottom: 14,
+        minHeight: 36,
+      }}>{area.desc}</div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {memberIds.map(function(memberId) {
           var member = area.members[memberId];
@@ -308,30 +359,36 @@ function AreaCard({ areaId, area, selected, onToggle, isLast, index }) {
             <button key={memberId} onClick={function() { onToggle(key); }} style={{
               display: "flex",
               alignItems: "center",
-              gap: 14,
-              padding: "10px 14px",
+              gap: 10,
+              padding: "8px 10px",
               border: "none",
-              borderLeft: isOn ? "3px solid " + (isYellow ? YELLOW : BLACK) : "3px solid transparent",
-              background: isOn ? (isYellow ? YELLOW + "22" : "#ececec") : "transparent",
+              borderRadius: 8,
+              background: isOn ? YELLOW_TINT : "transparent",
               cursor: "pointer",
               textAlign: "left",
               width: "100%",
-              transition: "all 0.1s",
+              transition: "background 0.1s",
             }}>
               <span style={{
-                width: 14,
-                height: 14,
-                border: isOn ? "none" : "1.5px solid #999",
-                background: isOn ? (isYellow ? YELLOW : BLACK) : "transparent",
-                display: "inline-block",
+                width: 13,
+                height: 13,
+                borderRadius: 4,
+                border: isOn ? "none" : "1.5px solid #b5b3ac",
+                background: isOn ? YELLOW : "transparent",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
                 flexShrink: 0,
-              }} />
+                fontSize: 9,
+                color: INK,
+                fontWeight: 900,
+              }}>{isOn ? "✓" : ""}</span>
               <span style={{
-                color: isOn ? BLACK : "#444",
+                color: isOn ? INK : TEXT_DIM,
                 fontWeight: isOn ? 700 : 500,
-                fontSize: 15,
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: "0.02em",
+                fontSize: 12.5,
+                fontFamily: MONO,
+                letterSpacing: "0.01em",
               }}>{member.name}</span>
             </button>
           );
@@ -341,33 +398,31 @@ function AreaCard({ areaId, area, selected, onToggle, isLast, index }) {
   );
 }
 
-function MessageBubble({ role, text, color }) {
-  var isYellow = color === YELLOW;
-  var accent = isYellow ? YELLOW : BLACK;
+function MessageBubble({ role, text, name }) {
+  var isUser = role === "user";
   return (
-    <div style={{ marginBottom: 26 }}>
+    <div style={{
+      display: "flex",
+      justifyContent: isUser ? "flex-end" : "flex-start",
+      gap: 10,
+      marginBottom: 18,
+    }}>
+      {!isUser && <Avatar name={name} size={32} dark />}
       <div style={{
-        fontSize: 10,
-        color: role === "user" ? TEXT_MUTED : (isYellow ? "#A88A00" : BLACK),
-        marginBottom: 8,
-        fontFamily: "'JetBrains Mono', monospace",
-        textTransform: "uppercase",
-        letterSpacing: "0.2em",
-        fontWeight: 700,
-      }}>{role === "user" ? "Tú" : "Twin"}</div>
-      <div style={{
-        padding: "18px 22px",
-        background: role === "user" ? "#f5f5f0" : SURFACE,
-        borderLeft: role === "user" ? "3px solid #ccc" : "3px solid " + accent,
-        color: role === "user" ? "#333" : "#1a1a1a",
-        fontSize: 16,
-        lineHeight: 1.85,
-        fontFamily: "'Georgia', 'Times New Roman', serif",
+        maxWidth: "78%",
+        padding: "14px 18px",
+        background: isUser ? YELLOW_SOFT : CARD,
+        border: isUser ? "1px solid " + YELLOW : "1px solid " + BORDER,
+        borderRadius: isUser ? "16px 16px 4px 16px" : "4px 16px 16px 16px",
+        color: TEXT,
+        fontSize: 15,
+        lineHeight: 1.7,
+        fontFamily: SANS,
         whiteSpace: "pre-wrap",
       }}>
         {text.split(/(\*\*[^*]+\*\*)/).map(function(part, i) {
           if (part.startsWith("**") && part.endsWith("**"))
-            return <strong key={i} style={{ color: BLACK, fontWeight: 700, background: isYellow ? YELLOW + "55" : "transparent", padding: isYellow ? "0 3px" : 0 }}>{part.slice(2, -2)}</strong>;
+            return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
           return <span key={i}>{part}</span>;
         })}
       </div>
@@ -378,108 +433,75 @@ function MessageBubble({ role, text, color }) {
 function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
   var replyState = useState(""); var reply = replyState[0]; var setReply = replyState[1];
   var sendState = useState(false); var sending = sendState[0]; var setSending = sendState[1];
-  var showAttachState = useState(false); var showReplyAttach = showAttachState[0]; var setShowReplyAttach = showAttachState[1];
-  var replyFileState = useState(null); var replyFileName = replyFileState[0]; var setReplyFileName = replyFileState[1];
-  var replyImgState = useState(null); var replyImageData = replyImgState[0]; var setReplyImageData = replyImgState[1];
-  var replyTextState = useState(""); var replyFileText = replyTextState[0]; var setReplyFileText = replyTextState[1];
   var endRef = useRef(null);
   useEffect(function() { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [conversation]);
 
-  var clearReplyFile = function() {
-    setReplyFileName(null); setReplyImageData(null); setReplyFileText(""); setShowReplyAttach(false);
-  };
-
-  var handleReplyFileContent = function(result, name) {
-    if (result && result.__isImage) {
-      setReplyImageData({ base64: result.base64, mime: result.mime, preview: "data:" + result.mime + ";base64," + result.base64 });
-      setReplyFileText("");
-    } else {
-      setReplyFileText(result);
-      setReplyImageData(null);
-    }
-    setReplyFileName(name);
-  };
-
   var handleReply = async function() {
-    if (!reply.trim() && !replyFileName) return;
-    if (sending) return;
+    if (!reply.trim() || sending) return;
     var msg = reply.trim();
-    if (replyFileText) msg += "\n\n---\nMATERIAL ADJUNTO (" + replyFileName + "):\n" + replyFileText;
-    else if (replyImageData && replyFileName) msg += "\n\n[Imagen adjunta: " + replyFileName + "]";
     setReply(""); setSending(true);
-    var img = replyImageData ? replyImageData.base64 : null;
-    var mime = replyImageData ? replyImageData.mime : null;
-    clearReplyFile();
-    await onReply(twinKey, msg, img, mime);
+    await onReply(twinKey, msg);
     setSending(false);
   };
 
-  var canSend = (reply.trim().length > 0 || !!replyFileName) && !sending;
-
   var visible = (conversation || []).filter(function(m) { return m.display !== false; });
-  var isYellow = area.color === YELLOW;
-  var accent = isYellow ? YELLOW : BLACK;
 
   return (
-    <div style={{
+    <div id={"card-" + twinKey} style={{
       border: "1px solid " + BORDER,
-      background: BG,
-      marginBottom: 32,
+      borderRadius: 20,
+      background: CARD,
+      marginBottom: 28,
+      overflow: "hidden",
+      boxShadow: "0 1px 3px rgba(20,20,20,0.04)",
     }}>
       <div style={{
-        padding: "18px 24px",
+        padding: "16px 22px",
         borderBottom: "1px solid " + BORDER,
         display: "flex",
         alignItems: "center",
-        gap: 18,
+        gap: 14,
         background: SURFACE,
       }}>
-        <div style={{
-          width: 5,
-          height: 40,
-          background: accent,
-          flexShrink: 0,
-        }} />
+        <Avatar name={member.name} size={42} dark />
         <div>
           <div style={{
-            fontWeight: 900,
-            color: BLACK,
-            fontSize: 17,
-            fontFamily: "'JetBrains Mono', monospace",
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
-          }}>{member.name}</div>
-          <div style={{
-            color: isYellow ? "#A88A00" : BLACK,
+            color: TEXT_MUTED,
             fontSize: 10,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: MONO,
             textTransform: "uppercase",
-            letterSpacing: "0.2em",
-            marginTop: 4,
+            letterSpacing: "0.22em",
+            marginBottom: 3,
           }}>{area.name}</div>
+          <div style={{
+            fontWeight: 800,
+            color: INK,
+            fontSize: 16,
+            fontFamily: SANS,
+          }}>{member.name}</div>
         </div>
       </div>
 
-      <div style={{ padding: "24px 24px 8px", maxHeight: 580, overflowY: "auto" }}>
+      <div style={{ padding: "22px 22px 8px", maxHeight: 560, overflowY: "auto", background: "#FDFDFB" }}>
         {visible.map(function(msg, i) {
-          return <MessageBubble key={i} role={msg.role} text={msg.text} color={area.color} />;
+          return <MessageBubble key={i} role={msg.role} text={msg.text} name={member.name} />;
         })}
         {loading && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0 16px" }}>
             <div style={{
               width: 13,
               height: 13,
               border: "2px solid #ddd",
-              borderTopColor: accent,
+              borderTopColor: YELLOW,
               borderRadius: "50%",
               animation: "spin 0.7s linear infinite",
               flexShrink: 0,
             }} />
             <span style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 12,
+              fontFamily: MONO,
+              fontSize: 11,
               color: TEXT_MUTED,
-              letterSpacing: "0.1em",
+              letterSpacing: "0.12em",
               textTransform: "uppercase",
             }}>pensando...</span>
           </div>
@@ -488,65 +510,42 @@ function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
       </div>
 
       {visible.length > 0 && !loading && (
-        <div style={{ borderTop: "1px solid " + BORDER_SOFT }}>
-          {/* Adjunto en reply */}
-          {showReplyAttach && (
-            <div style={{ padding: "12px 24px 0" }}>
-              <FileUpload
-                onFileContent={handleReplyFileContent}
-                fileName={replyFileName}
-                onClear={clearReplyFile}
-                imagePreview={replyImageData ? replyImageData.preview : null}
-              />
-            </div>
-          )}
-          {/* Input de texto + controles */}
-          <div style={{ padding: "14px 24px 20px", display: "flex", gap: 0, alignItems: "stretch" }}>
-            <button
-              onClick={function() { setShowReplyAttach(!showReplyAttach); }}
-              title="Adjuntar archivo"
-              style={{
-                padding: "0 14px",
-                background: showReplyAttach || replyFileName ? (isYellow ? YELLOW : "#e0e0e0") : BG,
-                border: "1px solid " + BLACK,
-                borderRight: "none",
-                color: BLACK,
-                fontSize: 15,
-                cursor: "pointer",
-                fontFamily: "'JetBrains Mono', monospace",
-                flexShrink: 0,
-              }}>⊕</button>
-            <input
-              value={reply}
-              onChange={function(e) { setReply(e.target.value); }}
-              onKeyDown={function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
-              placeholder={replyFileName ? "Agregar mensaje (opcional)..." : "Seguir conversando..."}
-              disabled={sending}
-              style={{
-                flex: 1,
-                padding: "12px 16px",
-                background: BG,
-                border: "1px solid " + BLACK,
-                borderRight: "none",
-                color: BLACK,
-                fontSize: 14,
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-            />
-            <button
-              onClick={handleReply}
-              disabled={!canSend}
-              style={{
-                padding: "12px 22px",
-                background: canSend ? YELLOW : "#eee",
-                color: canSend ? BLACK : "#999",
-                border: "1px solid " + (canSend ? YELLOW : "#ddd"),
-                fontSize: 16,
-                fontWeight: 900,
-                cursor: sending ? "wait" : "pointer",
-                fontFamily: "'JetBrains Mono', monospace",
-              }}>→</button>
-          </div>
+        <div style={{ padding: "14px 22px 18px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, alignItems: "center", background: CARD }}>
+          <input
+            value={reply}
+            onChange={function(e) { setReply(e.target.value); }}
+            onKeyDown={function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+            placeholder="Escribe tu pregunta..."
+            disabled={sending}
+            style={{
+              flex: 1,
+              padding: "12px 18px",
+              background: SURFACE,
+              border: "1px solid " + BORDER,
+              borderRadius: 999,
+              color: INK,
+              fontSize: 14,
+              fontFamily: SANS,
+            }}
+          />
+          <button
+            onClick={handleReply}
+            disabled={!reply.trim() || sending}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: "50%",
+              background: reply.trim() && !sending ? YELLOW : "#eeede8",
+              color: reply.trim() && !sending ? INK : "#aaa",
+              border: "none",
+              fontSize: 17,
+              fontWeight: 900,
+              cursor: sending ? "wait" : "pointer",
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}>→</button>
         </div>
       )}
     </div>
@@ -583,32 +582,84 @@ function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
           onDrop={function(e) { e.preventDefault(); setDragging(false); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) readFile(f); }}
           onClick={function() { if (inputRef.current) inputRef.current.click(); }}
           style={{
-            border: "1px dashed " + (dragging ? BLACK : "#bbb"),
-            padding: "24px 16px",
+            border: "1.5px dashed " + (dragging ? INK : "#c9c7c0"),
+            borderRadius: 14,
+            padding: "22px 16px",
             textAlign: "center",
             cursor: "pointer",
-            background: dragging ? SURFACE : BG,
+            background: dragging ? YELLOW_TINT : SURFACE,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 14,
           }}>
           <input ref={inputRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp" style={{ display: "none" }} onChange={function(e) { var f = e.target.files && e.target.files[0]; if (f) readFile(f); }} />
           {processing
-            ? <p style={{ color: TEXT_DIM, fontSize: 12, margin: 0, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>Leyendo...</p>
+            ? <p style={{ color: TEXT_DIM, fontSize: 12, margin: 0, fontFamily: MONO, letterSpacing: "0.1em" }}>Leyendo...</p>
             : <>
-                <p style={{ color: TEXT_DIM, fontSize: 12, margin: "0 0 4px", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>Arrastrá o hacé clic para adjuntar</p>
-                <p style={{ color: TEXT_MUTED, fontSize: 11, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>.pdf .docx .pptx .txt .md .png .jpg</p>
+                <span style={{ fontSize: 18, color: TEXT_DIM }}>↥</span>
+                <div style={{ textAlign: "left" }}>
+                  <p style={{ color: TEXT, fontSize: 13, margin: "0 0 2px", fontFamily: SANS, fontWeight: 600 }}>Arrastra tu archivo aquí o súbelo</p>
+                  <p style={{ color: TEXT_MUTED, fontSize: 11.5, margin: 0, fontFamily: SANS }}>PDF, DOCX, PPTX, TXT, MD, PNG, JPG</p>
+                </div>
               </>}
         </div>
       ) : (
-        <div style={{ background: SURFACE, border: "1px solid " + BORDER_SOFT, overflow: "hidden" }}>
-          {imagePreview && <img src={imagePreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "contain", display: "block", background: BG }} />}
+        <div style={{ background: SURFACE, border: "1px solid " + BORDER, borderRadius: 14, overflow: "hidden" }}>
+          {imagePreview && <img src={imagePreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "contain", display: "block", background: CARD }} />}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px" }}>
-            <span style={{ color: BLACK, fontSize: 14 }}>{imagePreview ? "▣" : "▤"}</span>
-            <span style={{ color: TEXT_DIM, fontSize: 13, fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>
-            <button onClick={onClear} style={{ background: "none", border: "1px solid " + BORDER_SOFT, color: TEXT_DIM, fontSize: 11, padding: "4px 12px", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}>✕</button>
+            <span style={{ color: INK, fontSize: 14 }}>{imagePreview ? "▣" : "▤"}</span>
+            <span style={{ color: TEXT_DIM, fontSize: 13, fontFamily: MONO, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>
+            <button onClick={onClear} style={{ background: "none", border: "1px solid " + BORDER, borderRadius: 8, color: TEXT_DIM, fontSize: 11, padding: "4px 12px", cursor: "pointer", fontFamily: MONO }}>✕</button>
           </div>
         </div>
       )}
-      {error && <p style={{ color: "#cc3333", fontSize: 12, marginTop: 6, fontFamily: "'JetBrains Mono', monospace" }}>{error}</p>}
+      {error && <p style={{ color: "#cc3333", fontSize: 12, marginTop: 6, fontFamily: MONO }}>{error}</p>}
     </div>
+  );
+}
+
+// ─── SIDEBAR ─────────────────────────────────────────────────────────────────
+function Sidebar() {
+  var iconStyle = {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 17,
+    color: "#8d8b85",
+    cursor: "default",
+    position: "relative",
+  };
+  return (
+    <aside style={{
+      width: 68,
+      background: INK,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      paddingTop: 26,
+      paddingBottom: 26,
+      flexShrink: 0,
+    }}>
+      <div style={{
+        color: "#fff",
+        fontFamily: SANS,
+        fontWeight: 800,
+        fontSize: 22,
+        marginBottom: 44,
+        letterSpacing: "-0.02em",
+      }}>F<span style={{ color: YELLOW }}>.</span></div>
+
+      <div style={Object.assign({}, iconStyle, { color: YELLOW, background: "rgba(242,194,48,0.12)" })}>
+        <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />
+        ✎
+      </div>
+      <div style={Object.assign({}, iconStyle, { marginTop: 8 })}>◷</div>
+      <div style={Object.assign({}, iconStyle, { marginTop: 8 })}>❏</div>
+    </aside>
   );
 }
 
@@ -623,6 +674,7 @@ export default function Home() {
   var attachState = useState(false); var showAttach = attachState[0]; var setShowAttach = attachState[1];
   var fnState = useState(null); var fileName = fnState[0]; var setFileName = fnState[1];
   var imgState = useState(null); var imageData = imgState[0]; var setImageData = imgState[1];
+  var firstQState = useState({}); var firstQuestions = firstQState[0]; var setFirstQuestions = firstQState[1];
   var resultsRef = useRef(null);
 
   var toggleTwin = function(key) {
@@ -650,7 +702,12 @@ export default function Home() {
     var initLoading = {}; selected.forEach(function(k) { initLoading[k] = true; }); setLoading(initLoading);
     setTimeout(function() { if (resultsRef.current) resultsRef.current.scrollIntoView({ behavior: "smooth" }); }, 200);
 
-    var userText = question.trim();
+    var q = question.trim();
+    var newFirst = {};
+    selected.forEach(function(k) { newFirst[k] = q; });
+    setFirstQuestions(newFirst);
+
+    var userText = q;
     if (!imageData && deliverable.trim().length > 0) {
       userText += "\n\n---\nMATERIAL DE REFERENCIA" + (fileName ? " (" + fileName + ")" : "") + ":\n" + deliverable.trim();
     } else if (imageData && fileName) {
@@ -669,7 +726,7 @@ export default function Home() {
       setConversations(function(prev) {
         var next = Object.assign({}, prev);
         next[key] = [
-          { role: "user", text: userText, display: false },
+          { role: "user", text: q, display: true },
           { role: "assistant", text: result }
         ];
         return next;
@@ -679,7 +736,7 @@ export default function Home() {
     setRunning(false);
   };
 
-  var handleReply = async function(twinKey, replyText, imgBase64, imgMime) {
+  var handleReply = async function(twinKey, replyText) {
     var conv = conversations[twinKey] || [];
     var newConv = conv.concat([{ role: "user", text: replyText }]);
     setConversations(function(prev) { var next = Object.assign({}, prev); next[twinKey] = newConv; return next; });
@@ -687,177 +744,178 @@ export default function Home() {
     var parsed = parseKey(twinKey);
     var member = TEAM[parsed.area].members[parsed.member];
     var apiMessages = newConv.map(function(m) { return { role: m.role, content: m.text }; });
-    var result = await callTwin(member.prompt, apiMessages, imgBase64 || null, imgMime || null);
+    var result = await callTwin(member.prompt, apiMessages);
     setConversations(function(prev) { var next = Object.assign({}, prev); next[twinKey] = prev[twinKey].concat([{ role: "assistant", text: result }]); return next; });
     setLoading(function(prev) { var next = Object.assign({}, prev); next[twinKey] = false; return next; });
   };
 
   var canRun = !running && hasContent && selected.length > 0;
-
   var teamEntries = Object.entries(TEAM);
+  var activeConversations = Object.keys(conversations);
 
   return (
-    <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Georgia', serif" }}>
+    <div style={{ minHeight: "100vh", background: PAGE_BG, color: TEXT, fontFamily: SANS, padding: "28px 16px" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        textarea:focus, input:focus { outline: none !important; border-color: #0a0a0a !important; }
-        textarea::placeholder, input::placeholder { color: #aaa; }
+        textarea:focus, input:focus { outline: none !important; border-color: #141414 !important; }
+        textarea::placeholder, input::placeholder { color: #b0aea7; }
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #ccc; }
-        body { background: #ffffff; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+        body { background: ${PAGE_BG}; margin: 0; }
       `}</style>
 
-      {/* Wrapper exterior con bordes negros que delimitan el área de trabajo */}
       <div style={{
         maxWidth: 1180,
-        margin: "32px auto",
-        border: "1px solid " + BLACK,
-        background: BG,
+        margin: "0 auto",
+        display: "flex",
+        borderRadius: 24,
+        overflow: "hidden",
+        background: CARD,
+        boxShadow: "0 4px 32px rgba(20,20,20,0.08)",
       }}>
-        <div style={{ padding: "0 64px 100px" }}>
+        <Sidebar />
+
+        <main style={{ flex: 1, padding: "0 56px 90px", position: "relative", minWidth: 0 }}>
+
+          {/* Forma amarilla decorativa */}
+          <div style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 210,
+            height: 190,
+            background: YELLOW,
+            borderBottomLeftRadius: "100%",
+          }} />
 
           {/* ── HEADER ── */}
-          <div style={{ borderBottom: "2px solid " + BLACK, paddingTop: 64, paddingBottom: 44, marginBottom: 56 }}>
-
-            <div style={{ width: 56, height: 5, background: YELLOW, marginBottom: 32 }} />
+          <div style={{ paddingTop: 56, paddingBottom: 40, marginBottom: 44, borderBottom: "1px solid " + BORDER, position: "relative" }}>
+            <Eyebrow style={{ marginBottom: 20 }}>Fahrenheit DDB</Eyebrow>
 
             <h1 style={{
-              fontSize: 104,
-              fontWeight: 900,
-              margin: "0",
-              letterSpacing: "-0.04em",
-              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-              color: BLACK,
-              lineHeight: 0.92,
-            }}>SPARRING</h1>
-
-            <p style={{
-              fontSize: 24,
-              color: BLACK,
-              margin: "22px 0 0",
-              fontFamily: "'Georgia', serif",
-              fontStyle: "italic",
-              lineHeight: 1.4,
+              fontSize: 76,
+              margin: 0,
+              letterSpacing: "-0.03em",
+              fontFamily: SANS,
+              color: INK,
+              lineHeight: 1,
               fontWeight: 400,
-            }}>Conversa con tus líderes.</p>
+            }}>Fahre<span style={{ fontWeight: 800 }}>AI</span></h1>
 
             <div style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 12,
-              color: TEXT_DIM,
-              letterSpacing: "0.25em",
-              textTransform: "uppercase",
-              marginTop: 26,
-              marginBottom: 26,
-            }}>Fahrenheit DDB</div>
+              fontSize: 20,
+              color: INK,
+              margin: "10px 0 0",
+              fontFamily: SANS,
+            }}>by <span style={{ fontWeight: 800 }}>fahrenheit</span><sup style={{ fontSize: 10, fontWeight: 800 }}>DDB</sup></div>
 
-            {/* Disclaimer */}
+            <p style={{
+              fontSize: 15,
+              color: TEXT_DIM,
+              margin: "22px 0 0",
+              fontFamily: SANS,
+              lineHeight: 1.6,
+              maxWidth: 460,
+            }}>Una herramienta compartida para hacer mejores preguntas, obtener nuevas perspectivas y seguir aprendiendo juntos.</p>
+
             <div style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 12,
-              border: "1px solid " + BLACK,
-              padding: "10px 16px",
-              background: BG,
+              gap: 10,
+              border: "1px solid " + BORDER,
+              borderRadius: 999,
+              padding: "8px 16px",
+              background: SURFACE,
+              marginTop: 22,
             }}>
-              <div style={{ width: 8, height: 8, background: YELLOW, flexShrink: 0 }} />
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: YELLOW, flexShrink: 0 }} />
               <span style={{
-                color: BLACK,
-                fontSize: 12,
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: "0.05em",
-              }}>Herramienta compartida · Límite de 1,000 consultas por día entre todos los usuarios</span>
+                color: TEXT_DIM,
+                fontSize: 11.5,
+                fontFamily: MONO,
+                letterSpacing: "0.04em",
+              }}>Límite de 1,000 consultas por día entre todos los usuarios</span>
             </div>
           </div>
 
           {/* ── PANEL ── */}
-          <div style={{ marginBottom: 52 }}>
+          <div style={{ marginBottom: 48 }}>
+            <Eyebrow>Elige a quién quieres consultar</Eyebrow>
             <div style={{
-              fontSize: 11,
-              color: TEXT_MUTED,
-              fontWeight: 700,
-              letterSpacing: "0.28em",
-              textTransform: "uppercase",
-              fontFamily: "'JetBrains Mono', monospace",
-              marginBottom: 8,
-            }}>Panel</div>
-            <div style={{ borderTop: "2px solid " + BLACK, borderBottom: "2px solid " + BLACK }}>
-              {teamEntries.map(function(entry, idx) {
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(215px, 1fr))",
+              gap: 14,
+            }}>
+              {teamEntries.map(function(entry) {
                 return <AreaCard
                   key={entry[0]}
                   areaId={entry[0]}
                   area={entry[1]}
                   selected={selected}
                   onToggle={toggleTwin}
-                  isLast={idx === teamEntries.length - 1}
-                  index={idx}
                 />;
               })}
             </div>
           </div>
 
           {/* ── PREGUNTA ── */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{
-              fontSize: 11,
-              color: TEXT_MUTED,
-              fontWeight: 700,
-              letterSpacing: "0.28em",
-              textTransform: "uppercase",
-              fontFamily: "'JetBrains Mono', monospace",
-              marginBottom: 14,
-            }}>Tu pregunta</div>
-            <textarea
-              value={question}
-              onChange={function(e) { setQuestion(e.target.value); }}
-              placeholder="¿Qué opinas de este insight? / ¿Cómo abordarías un brief de banca para jóvenes? / Revisa esta propuesta..."
-              rows={4}
-              style={{
-                width: "100%",
-                padding: "16px 18px",
-                background: BG,
-                border: "1px solid " + BLACK,
-                color: BLACK,
-                fontSize: 16,
-                lineHeight: 1.7,
-                fontFamily: "'Georgia', serif",
-                resize: "vertical",
-              }}
-            />
+          <div style={{ marginBottom: 22 }}>
+            <Eyebrow>Tu pregunta <span style={{ color: YELLOW, fontSize: 13 }}>•</span></Eyebrow>
+            <div style={{ position: "relative" }}>
+              <textarea
+                value={question}
+                onChange={function(e) { setQuestion(e.target.value); }}
+                placeholder="Escribe tu pregunta aquí..."
+                rows={4}
+                style={{
+                  width: "100%",
+                  padding: "16px 18px 32px",
+                  background: CARD,
+                  border: "1px solid " + BORDER,
+                  borderRadius: 14,
+                  color: INK,
+                  fontSize: 15,
+                  lineHeight: 1.7,
+                  fontFamily: SANS,
+                  resize: "vertical",
+                }}
+              />
+              <div style={{
+                position: "absolute",
+                bottom: 12,
+                right: 16,
+                fontSize: 11,
+                color: TEXT_MUTED,
+                fontFamily: MONO,
+              }}>{question.length} / 500</div>
+            </div>
           </div>
 
           {/* ── ADJUNTO ── */}
-          <div style={{ marginBottom: 40 }}>
+          <div style={{ marginBottom: 36 }}>
             {!showAttach && !fileName && deliverable.trim().length === 0 ? (
               <button
                 onClick={function() { setShowAttach(true); }}
                 style={{
-                  background: BG,
-                  border: "1px dashed #bbb",
-                  padding: "12px 16px",
+                  background: SURFACE,
+                  border: "1.5px dashed #c9c7c0",
+                  borderRadius: 14,
+                  padding: "13px 16px",
                   color: TEXT_DIM,
-                  fontSize: 12,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11.5,
+                  fontFamily: MONO,
                   cursor: "pointer",
                   width: "100%",
-                  letterSpacing: "0.08em",
+                  letterSpacing: "0.1em",
                   textTransform: "uppercase",
                 }}>
-                + Adjuntar material de referencia (opcional)
+                + Material de referencia (opcional)
               </button>
             ) : (
               <div>
-                <div style={{
-                  fontSize: 11,
-                  color: TEXT_MUTED,
-                  fontWeight: 700,
-                  letterSpacing: "0.28em",
-                  textTransform: "uppercase",
-                  fontFamily: "'JetBrains Mono', monospace",
-                  marginBottom: 14,
-                }}>Material de referencia <span style={{ color: TEXT_MUTED, fontWeight: 400 }}>(opcional)</span></div>
+                <Eyebrow>Material de referencia <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: "0.05em" }}>(opcional)</span></Eyebrow>
                 <div style={{ marginBottom: 10 }}>
                   <FileUpload onFileContent={handleFileContent} fileName={fileName} onClear={clearFile} imagePreview={imageData ? imageData.preview : null} />
                 </div>
@@ -865,18 +923,19 @@ export default function Home() {
                   <textarea
                     value={deliverable}
                     onChange={function(e) { setDeliverable(e.target.value); }}
-                    placeholder="O pegá aquí el brief, la propuesta, el insight..."
+                    placeholder="O pega aquí el brief, la propuesta, el insight..."
                     rows={5}
                     style={{
                       width: "100%",
                       padding: "16px 18px",
-                      background: BG,
-                      border: "1px solid " + BLACK,
-                      color: BLACK,
-                      fontSize: 15,
+                      background: CARD,
+                      border: "1px solid " + BORDER,
+                      borderRadius: 14,
+                      color: INK,
+                      fontSize: 14.5,
                       lineHeight: 1.7,
                       resize: "vertical",
-                      fontFamily: "'Georgia', serif",
+                      fontFamily: SANS,
                     }}
                   />
                 )}
@@ -890,22 +949,60 @@ export default function Home() {
             disabled={!canRun}
             style={{
               width: "100%",
-              padding: "22px 0",
-              fontSize: 15,
-              fontWeight: 900,
-              fontFamily: "'JetBrains Mono', monospace",
-              background: canRun ? YELLOW : "#f0f0eb",
-              color: canRun ? BLACK : "#aaa",
-              border: "2px solid " + (canRun ? BLACK : "#ddd"),
+              padding: "18px 0",
+              fontSize: 13.5,
+              fontWeight: 800,
+              fontFamily: MONO,
+              background: canRun ? YELLOW : "#f0efe9",
+              color: canRun ? INK : "#aaa",
+              border: "none",
+              borderRadius: 12,
               cursor: canRun ? "pointer" : "default",
-              letterSpacing: "0.18em",
+              letterSpacing: "0.22em",
               textTransform: "uppercase",
               transition: "all 0.1s",
             }}
           >{running ? "Consultando..." : "Preguntar → " + selected.length + " twin" + (selected.length !== 1 ? "s" : "")}</button>
 
+          {/* ── CONVERSACIONES RECIENTES ── */}
+          {activeConversations.length > 0 && !running && (
+            <div style={{ marginTop: 40 }}>
+              <Eyebrow>Conversaciones recientes</Eyebrow>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {activeConversations.map(function(key) {
+                  var parsed = parseKey(key);
+                  var area = TEAM[parsed.area];
+                  var member = area.members[parsed.member];
+                  return (
+                    <button key={key}
+                      onClick={function() { var el = document.getElementById("card-" + key); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        padding: "12px 16px",
+                        background: CARD,
+                        border: "1px solid " + BORDER,
+                        borderRadius: 14,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        width: "100%",
+                      }}>
+                      <Avatar name={member.name} size={34} dark />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS }}>{member.name} <span style={{ fontWeight: 400, color: TEXT_MUTED, fontSize: 12 }}>· {area.name}</span></div>
+                        <div style={{ fontSize: 12.5, color: TEXT_DIM, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{firstQuestions[key] || ""}</div>
+                      </div>
+                      <span style={{ color: TEXT_MUTED, fontSize: 15 }}>→</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* ── RESULTADOS ── */}
-          <div ref={resultsRef} style={{ marginTop: 72 }}>
+          <div ref={resultsRef} style={{ marginTop: 48 }}>
             {selected.map(function(key) {
               if (!conversations[key] && !loading[key]) return null;
               var parsed = parseKey(key);
@@ -925,24 +1022,25 @@ export default function Home() {
             })}
           </div>
 
-          {Object.keys(conversations).length > 0 && !running && (
+          {activeConversations.length > 0 && !running && (
             <div style={{
-              marginTop: 12,
-              padding: "14px 18px",
-              border: "1px solid " + BORDER_SOFT,
+              marginTop: 8,
+              padding: "13px 18px",
+              border: "1px solid " + BORDER,
+              borderRadius: 14,
               background: SURFACE,
             }}>
               <p style={{
                 color: TEXT_DIM,
                 fontSize: 11,
                 margin: 0,
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: "0.08em",
+                fontFamily: MONO,
+                letterSpacing: "0.06em",
                 textTransform: "uppercase",
-              }}>Cada twin mantiene su propia conversación. Podés profundizar, cuestionar o pedir alternativas.</p>
+              }}>Cada twin mantiene su propia conversación. Puedes profundizar, cuestionar o pedir alternativas.</p>
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );
