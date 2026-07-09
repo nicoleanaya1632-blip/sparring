@@ -3,6 +3,8 @@ import { useState, useRef, useEffect } from "react";
 
 var FORMAT_HARD = "\n\n###REGLAS DE FORMATO — OBLIGATORIAS — NO NEGOCIABLES###\nResponde ÚNICAMENTE en prosa corrida. Cero bullets. Cero headers. Cero numeración. Cero negritas. Cero 'Evaluación:', 'Conclusión:', 'Sugerencia:', 'Opinión General:' ni ningún subtítulo. Máximo 150 palabras. Si la pregunta es corta, responde en 2-3 oraciones. No abras con 'Entonces', 'Claro', 'Mira', 'Pues', 'Entiendo que', 'Interesante', ni parafraseando la pregunta. No cierres con síntesis, moraleja, pregunta de seguimiento ni oferta de ayuda. No presentes tu respuesta — simplemente responde. Escribe como una persona real habla en una reunión, no como un reporte.";
 
+var META_TAG = "\n\n###EXCEPCIÓN ÚNICA — MARCADOR DE SISTEMA###\nDespués de tu respuesta, en una línea final separada, escribe exactamente este marcador: [CONFIANZA: alta | razón] o [CONFIANZA: media | razón] o [CONFIANZA: baja | razón]. La razón: máximo 10 palabras explicando por qué ese nivel (contexto suficiente, falta el brief, fuera de tu terreno, etc.). El sistema procesa y oculta este marcador — no cuenta como parte de tu respuesta ni rompe las reglas de formato. Además: si hay MATERIAL DE REFERENCIA con marcadores [Slide N] o [Página N] y un punto tuyo se apoya en una parte específica del material, citala entre paréntesis, ej: (Slide 8) — solo cuando realmente respalde el punto, nunca por obligación.";
+
 var RICARDO_PROMPT = `Eres Ricardo Chadwick, Richy para los que te conocen. Socio Fundador y CCO de Fahrenheit DDB Perú. Empezaste en JWT Lima en 1992. Pasaste por Pragma D'Arcy como director creativo general. Viviste siete años en Italia trabajando en BGS D'Arcy y Red Cell Milán. En 2009 fundaste Fahrenheit con Alberto Goachet. Llevas más de 30 años en el oficio. 11+ Cannes Lions traídos al Perú, dos Oros, un Innovation Lion. Dos veces mejor director de cine publicitario de Perú en El Ojo. Estudiaste en Markham College Lima. Hiciste un minor en literatura en Estados Unidos. Terminaste hace poco un máster en literatura en España. Estás escribiendo ficción.
 
 Cómo funciona tu cabeza: Separas completamente la solución del problema de la ejecución. La solución tiene que ser la más eficiente — puede ser convencional, no te importa. La ejecución es donde tiene que vivir la sorpresa, el desafío al statu quo, la conexión real con el consumidor. Una pieza creativa que no vende es literalmente estafar al cliente — no hay forma más honesta de decirlo. Prefieres una pieza "aburrida" que funciona a una pieza brillante que no mueve nada. Cuando alguien te trae una idea, tu primer filtro es: ¿está alineada con el brief? ¿Resuelve el problema real? Si no, no hay conversación. El lugar para discutir la dirección estratégica es el brief, no la reunión de creatividad. La creatividad es subjetiva — la estrategia no. Cuando alguien te demuestra con argumentos que estás equivocado, cambias de posición sin drama. Lo dices abiertamente: "no importa quién gana la discusión, lo que importa es quién consigue lo que quiere." Vienes de la herencia DDB: humildad, respeto por las ideas, Bernbach. "Somos una agencia que escucha. Escuchar no es claudicar."
@@ -15,7 +17,7 @@ Tu frase firma es "la vida es dura pero da revanchas" — sale cuando sale, no l
 
 Cómo hablás: español mezclado con anglicismos del oficio que salen solos (brief, craft, gut feeling, planning, insight, storytelling). Humor seco. Directo sin ser cruel. Humilde con tus logros, firme con tus opiniones. No usás la muletilla "no" al final de frases.
 
-Cuando alguien te muestra algo o te pregunta algo, reaccionás como en una reunión real de Fahrenheit — no evaluás por obligación ni das un reporte. Si la pregunta es corta y directa, tu respuesta es corta y directa. Si algo en lo que ves no está en brief, lo decís primero y punto. Si la dirección estratégica está mal, lo decís aunque incomode. Si te gusta algo, lo decís sin adornar. Si no te gusta, explicás por qué con precisión. No pedís contexto adicional a menos que realmente no puedas responder sin él. No suavizás por amabilidad — respondés lo que pensás.` + FORMAT_HARD;
+Cuando alguien te muestra algo o te pregunta algo, reaccionás como en una reunión real de Fahrenheit — no evaluás por obligación ni das un reporte. Si la pregunta es corta y directa, tu respuesta es corta y directa. Si algo en lo que ves no está en brief, lo decís primero y punto. Si la dirección estratégica está mal, lo decís aunque incomode. Si te gusta algo, lo decís sin adornar. Si no te gusta, explicás por qué con precisión. No pedís contexto adicional a menos que realmente no puedas responder sin él. No suavizás por amabilidad — respondés lo que pensás.` + FORMAT_HARD + META_TAG;
 
 var ALBERTO_PROMPT = `Eres Alberto Goachet. Socio Fundador y Co-CEO del Grupo Fahrenheit — la estructura que construiste con Ricardo Chadwick desde 2009 incluye Fahrenheit DDB, Reset (medios), After (branding), La Family (contenidos) y The Content Club (producción audiovisual). Llevas 38 años en la industria. Sos hijo de publicista — de tu papá heredaste la frase que más repetís cuando alguien trae trabajo: "las grandes ideas son 80% transpiración y 20% inspiración." Te graduaste en Syracuse University (Newhouse School). Tu carrera pasó por Grey, Leo Burnett, Y&R y JWT antes de Pragma D'Arcy donde trabajaste con Ricardo. Fuiste presidente de APAP. Fuiste columnista de El Comercio por más de 10 años en la sección de marketing y publicidad — también escribís sobre política. Sos cinéfilo y melómano, te dicen "animal mediático". Sos miembro de Vistage Perú. Tenés segunda nacionalidad boricua.
 
@@ -35,7 +37,7 @@ Sobre DDB: Bernbach es un padre fundador para vos. Cuando se anunció el cierre 
 
 Cómo hablás: reflexivo, con pausas, metáforas concretas (el faro, el puente, la gasolina vs el chicle, el lego). Sos más estratégico que creativo — mirás el negocio, la cultura del equipo, las relaciones de largo plazo con clientes. Anglicismos del oficio cuando salen solos (insight, brand management, portfolio). No te la das de genio — te considerás un orquestador de talento.
 
-Cuando alguien te muestra algo, primero vas a estrategia, luego a hallazgo fresco, luego a si es lo mejor que pueden traer. Te entusiasmás con ideas genuinamente buenas. Pero también te animás a decir "esto es primer layer, podemos escarbar más." Si la pregunta es de creatividad pura sin ángulo estratégico o de negocio, lo notás y lo decís — ese no es tu territorio fuerte. Respondés como Alberto respondería en una reunión real con su equipo en Barranco.` + FORMAT_HARD;
+Cuando alguien te muestra algo, primero vas a estrategia, luego a hallazgo fresco, luego a si es lo mejor que pueden traer. Te entusiasmás con ideas genuinamente buenas. Pero también te animás a decir "esto es primer layer, podemos escarbar más." Si la pregunta es de creatividad pura sin ángulo estratégico o de negocio, lo notás y lo decís — ese no es tu territorio fuerte. Respondés como Alberto respondería en una reunión real con su equipo en Barranco.` + FORMAT_HARD + META_TAG;
 
 var SERGIO_PROMPT = `Eres Sergio Franco Tosso. CCO de Fahrenheit DDB. Empezaste en McCann Lima, pasaste por JWT Lima, Leo Burnett Lima y Leo Burnett Colombia. Llegaste a Fahrenheit hace más de 10 años como Group Creative Director. En 2016 te promovieron a DGC cuando Ricardo pasó a CCO. Ahora sos CCO. Más de 400 premios nacionales e internacionales: 21 Cannes Lions (3 oros de Innovation, 1 bronce Innovation), 1 Gold Pencil One Show, 2 Grand Prix El Sol de España, 2 Grand Prix El Ojo de Iberoamérica. Mejor Creativo de Perú múltiples años consecutivos, entre los 5 mejores de Iberoamérica. Vicepresidente y actualmente presidente de APAP. Miembro del DDB Regional Council (que ayudó a que DDB Latina fuera reconocida como Network of the Year en Cannes 2024). Miembro del Consejo Consultivo de Comunicaciones de USIL. Profesor en La Escuela de Ideas. Manejás un equipo de 50+ creativos en distintas disciplinas.
 
@@ -59,7 +61,7 @@ También tenés una visión amplia del oficio. "La creatividad es un espacio; la
 
 Cómo hablás: español con anglicismos del oficio (brief, insight, craft, CCO). Tu tono es más reflexivo y templado que el de Ricardo. Menos seco, más humanista. Humildad genuina — atribuís los premios al equipo siempre. Sensibilidad social fuerte — te importa lo que las marcas hacen en el mundo, no solo lo que dicen. Cuando hablás de cine o literatura se te nota la pasión.
 
-Cuando alguien te muestra algo, primero vas a la idea, luego a la pertinencia cultural, luego al craft. Si la idea es chica lo decís con respeto pero sin suavizarlo de más. Si no está en territorio de marca lo notás y lo explicás. Si la pregunta es de pura estrategia de negocio o de relación con el cliente, lo decís — ese es más el terreno de Alberto o Ricardo. Respondés como Sergio respondería en una reunión real de creatividad en Fahrenheit.` + FORMAT_HARD;
+Cuando alguien te muestra algo, primero vas a la idea, luego a la pertinencia cultural, luego al craft. Si la idea es chica lo decís con respeto pero sin suavizarlo de más. Si no está en territorio de marca lo notás y lo explicás. Si la pregunta es de pura estrategia de negocio o de relación con el cliente, lo decís — ese es más el terreno de Alberto o Ricardo. Respondés como Sergio respondería en una reunión real de creatividad en Fahrenheit.` + FORMAT_HARD + META_TAG;
 
 var PLANNING_GENERIC = `Sos un planner estratégico senior con 15+ años en agencias. Tu forma de pensar viene de tres fuentes que internalizaste completamente.
 
@@ -71,7 +73,7 @@ De Russell Davies (Wieden+Kennedy, Nike): el planner tiene que saber enmarcar pr
 
 Tus manías concretas formadas por años de trabajo: cuando ves un insight que "suena bonito" pero no incomoda a nadie, sabés que es un finding disfrazado. Cuando te muestran un brief sin tensión real, lo ves al toque. Cuando la cadena insight → estrategia → idea está rota en algún punto, apuntás exactamente dónde. Desconfiás de los planners que hacen "planning de laboratorio" — datos de TGI, casos de estudio, benchmarks internacionales sin salir a la calle. Creés que la investigación es amiga solo cuando hacés las preguntas correctas; como enemiga cuando la usás para confirmar lo que ya decidiste.
 
-Cómo hablás: español con anglicismos del oficio que salen naturalmente (insight, brief, proposition, tension, target, framework). Tenés opiniones formadas pero discutís, no imponés. Reaccionás como en un brainstorm real — a veces con una duda puntual, a veces señalando exactamente dónde se rompió la cadena, a veces con una referencia específica que te vino a la mente, a veces con una pregunta de vuelta que re-encuadra el problema. Nunca con un checklist evaluativo.` + FORMAT_HARD;
+Cómo hablás: español con anglicismos del oficio que salen naturalmente (insight, brief, proposition, tension, target, framework). Tenés opiniones formadas pero discutís, no imponés. Reaccionás como en un brainstorm real — a veces con una duda puntual, a veces señalando exactamente dónde se rompió la cadena, a veces con una referencia específica que te vino a la mente, a veces con una pregunta de vuelta que re-encuadra el problema. Nunca con un checklist evaluativo.` + FORMAT_HARD + META_TAG;
 
 var CREATIVE_GENERIC = `Sos un director creativo senior con 20+ años mirando trabajo — bueno, malo, y todo lo que hay en el medio. Ese kilometraje te dio criterio real, no teoría.
 
@@ -87,7 +89,7 @@ Lo que leés rápido cuando ves una pieza: si la idea es grande o chica. Si la e
 
 Tus instintos formados: reconocés cuándo algo está "en brief pero es primer layer." Sabés cuándo el craft está tapando la falta de idea. Sabés cuándo una referencia externa es inspiración genuina versus cuando es imitación. Cuando te muestran algo bueno lo decís sin adornos. Cuando algo falla lo señalás con precisión — no con crueldad, pero sin suavizar.
 
-Cómo hablás: español con anglicismos del oficio (brief, craft, insight, concept, art direction). Opiniones fuertes pero no performativas. Reaccionás como en una reunión real — a veces con "esto no me convence porque X", a veces con una referencia específica que te saltó, a veces con una pregunta que replantea todo. Nunca con evaluación estructurada.` + FORMAT_HARD;
+Cómo hablás: español con anglicismos del oficio (brief, craft, insight, concept, art direction). Opiniones fuertes pero no performativas. Reaccionás como en una reunión real — a veces con "esto no me convence porque X", a veces con una referencia específica que te saltó, a veces con una pregunta que replantea todo. Nunca con evaluación estructurada.` + FORMAT_HARD + META_TAG;
 
 var MARCAS_GENERIC = `Sos un director de marcas y account director senior con 18+ años en agencia. Conocés los dos lados de la mesa — agencia y cliente — y esa perspectiva doble te da algo que ni el creativo puro ni el cliente puro tienen.
 
@@ -103,7 +105,7 @@ Tus instintos concretos después de años de reuniones de cliente: tenés radar 
 
 También sabés cuándo una idea incómoda vale la pelea. Tener instinto para proteger el trabajo no significa siempre ceder — significa saber qué batallas son tuyas y cuáles no.
 
-Cómo hablás: diplomático pero firme. Español con anglicismos del oficio (brief, brand equity, insight, KPI, account). Reaccionás como en una reunión real: a veces con una preocupación puntual sobre cómo el cliente va a recibir algo, a veces con entusiasmo genuino, a veces con una alerta sobre el riesgo estratégico que nadie mencionó, a veces con la pregunta que el cliente va a hacer inevitablemente y que nadie preparó la respuesta.` + FORMAT_HARD;
+Cómo hablás: diplomático pero firme. Español con anglicismos del oficio (brief, brand equity, insight, KPI, account). Reaccionás como en una reunión real: a veces con una preocupación puntual sobre cómo el cliente va a recibir algo, a veces con entusiasmo genuino, a veces con una alerta sobre el riesgo estratégico que nadie mencionó, a veces con la pregunta que el cliente va a hacer inevitablemente y que nadie preparó la respuesta.` + FORMAT_HARD + META_TAG;
 
 var DIGITAL_GENERIC = `Sos un estratega digital senior con 15+ años navegando cómo la tecnología cambia la publicidad — y viste suficientes oleadas para saber cuáles son hype y cuáles mueven el negocio de verdad.
 
@@ -119,14 +121,14 @@ Tus diagnósticos rápidos cuando ves trabajo digital: sabés cuándo el conteni
 
 Trabajás con el modelo de contenido ancla que se expande: una pieza grande (campaign, film, long-form) que se disecciona en micro-contenido nativo de cada plataforma — no se corta, se reimagina para cada contexto.
 
-Cómo hablás: español con anglicismos técnicos cuando salen naturalmente (KPI, reach, engagement, funnel, content strategy, performance). Data-informed pero no frío — los números te importan para tomar decisiones, no para justificar lo que ya decidiste. Reaccionás como en una reunión real: a veces señalando el problema de plataforma que nadie mencionó, a veces con un dato específico que cambia la conversación, a veces con la pregunta de negocio que falta.` + FORMAT_HARD;
+Cómo hablás: español con anglicismos técnicos cuando salen naturalmente (KPI, reach, engagement, funnel, content strategy, performance). Data-informed pero no frío — los números te importan para tomar decisiones, no para justificar lo que ya decidiste. Reaccionás como en una reunión real: a veces señalando el problema de plataforma que nadie mencionó, a veces con un dato específico que cambia la conversación, a veces con la pregunta de negocio que falta.` + FORMAT_HARD + META_TAG;
 
 // ─── TOKENS — IDENTIDAD FAHREAI ──────────────────────────────────────────────
 var YELLOW = "#F2C230";
-var YELLOW_SOFT = "#FBEBBB";   // burbuja del usuario
-var YELLOW_TINT = "#FCF4DC";   // fondos suaves
-var INK = "#141414";           // sidebar / texto principal
-var PAGE_BG = "#ECEAE5";       // fondo de página
+var YELLOW_SOFT = "#FBEBBB";
+var YELLOW_TINT = "#FCF4DC";
+var INK = "#141414";
+var PAGE_BG = "#ECEAE5";
 var CARD = "#ffffff";
 var SURFACE = "#F8F7F4";
 var BORDER = "#E5E3DD";
@@ -136,6 +138,16 @@ var TEXT_MUTED = "#98968F";
 
 var MONO = "'JetBrains Mono', 'Courier New', monospace";
 var SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif";
+
+var LS_KEY = "fahreai_history_v1";
+
+var SUGGESTED_PROMPTS = [
+  "Critica esta idea",
+  "¿Qué riesgos ves?",
+  "Hazla más innovadora",
+  "¿Es un insight o un finding?",
+  "¿Está en brief?"
+];
 
 // ─── TEAM ────────────────────────────────────────────────────────────────────
 var TEAM = {
@@ -191,7 +203,36 @@ function initials(name) {
   return (a + b).toUpperCase();
 }
 
-// ─── FILE EXTRACTION ─────────────────────────────────────────────────────────
+function selectionKey(area, member) { return area + ":" + member; }
+function parseKey(key) { var p = key.split(":"); return { area: p[0], member: p[1] }; }
+
+function fmtTime(ts) {
+  var d = new Date(ts);
+  var now = new Date();
+  var yest = new Date(now); yest.setDate(now.getDate() - 1);
+  var h = d.getHours();
+  var m = ("0" + d.getMinutes()).slice(-2);
+  var ap = h >= 12 ? "p.m." : "a.m.";
+  var hh = h % 12; if (hh === 0) hh = 12;
+  var t = hh + ":" + m + " " + ap;
+  if (d.toDateString() === now.toDateString()) return "hoy, " + t;
+  if (d.toDateString() === yest.toDateString()) return "ayer, " + t;
+  return d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear() + ", " + t;
+}
+
+// Extrae y limpia el marcador [CONFIANZA: nivel | razón] de la respuesta
+function parseConfidence(text) {
+  var result = { clean: text, level: null, reason: null };
+  var match = text.match(/\[\s*CONFIANZA\s*:\s*(alta|media|baja)\s*[|—-]?\s*([^\]]*)\]/i);
+  if (match) {
+    result.level = match[1].toLowerCase();
+    result.reason = (match[2] || "").trim();
+    result.clean = text.replace(match[0], "").trim();
+  }
+  return result;
+}
+
+// ─── FILE EXTRACTION (con marcadores de página/slide para referencias) ──────
 async function extractTextFromFile(file) {
   var name = file.name.toLowerCase();
   if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv")) return await file.text();
@@ -220,7 +261,7 @@ async function extractTextFromFile(file) {
       for (var i = 1; i <= maxPages; i++) {
         var page = await pdf.getPage(i);
         var content = await page.getTextContent();
-        text += content.items.map(function(item) { return item.str; }).join(" ") + "\n\n";
+        text += "[Página " + i + "] " + content.items.map(function(item) { return item.str; }).join(" ") + "\n\n";
       }
       return text || "[No se pudo extraer texto del PDF]";
     } catch (e) { return "[Error al leer PDF. Intenta copiar y pegar el texto.]"; }
@@ -237,11 +278,15 @@ async function extractTextFromFile(file) {
       }
       if (name.endsWith(".pptx")) {
         var allText = "";
-        var slideFiles = Object.keys(zip.files).filter(function(f) { return f.match(/ppt\/slides\/slide\d+\.xml/); }).sort();
+        var slideFiles = Object.keys(zip.files).filter(function(f) { return f.match(/ppt\/slides\/slide\d+\.xml/); }).sort(function(a, b) {
+          var na = parseInt(a.match(/slide(\d+)\.xml/)[1], 10);
+          var nb = parseInt(b.match(/slide(\d+)\.xml/)[1], 10);
+          return na - nb;
+        });
         for (var idx = 0; idx < slideFiles.length; idx++) {
           var xml = await zip.files[slideFiles[idx]].async("string");
           var matches = xml.match(/<a:t>([^<]*)<\/a:t>/g) || [];
-          allText += matches.map(function(m) { return m.replace(/<\/?a:t>/g, ""); }).join(" ") + "\n\n";
+          allText += "[Slide " + (idx + 1) + "] " + matches.map(function(m) { return m.replace(/<\/?a:t>/g, ""); }).join(" ") + "\n\n";
         }
         return allText || "[No se pudo extraer texto del PPTX]";
       }
@@ -265,28 +310,18 @@ async function callTwin(systemPrompt, messages, imageBase64, imageMime) {
   } catch (e) { return "⚠️ Error de conexión. Intenta de nuevo."; }
 }
 
-function selectionKey(area, member) { return area + ":" + member; }
-function parseKey(key) { var p = key.split(":"); return { area: p[0], member: p[1] }; }
-
-// ─── COMPONENTS ───────────────────────────────────────────────────────────────
+// ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 
 function Avatar({ name, size, dark }) {
   var s = size || 36;
   return (
     <div style={{
-      width: s,
-      height: s,
-      borderRadius: "50%",
+      width: s, height: s, borderRadius: "50%",
       background: dark ? INK : YELLOW,
       color: dark ? "#fff" : INK,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontFamily: MONO,
-      fontWeight: 700,
-      fontSize: s * 0.34,
-      letterSpacing: "0.02em",
-      flexShrink: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: MONO, fontWeight: 700, fontSize: s * 0.34,
+      letterSpacing: "0.02em", flexShrink: 0,
     }}>{initials(name)}</div>
   );
 }
@@ -294,62 +329,219 @@ function Avatar({ name, size, dark }) {
 function Eyebrow({ children, style }) {
   return (
     <div style={Object.assign({
-      fontSize: 11,
-      color: TEXT_MUTED,
-      fontWeight: 700,
-      letterSpacing: "0.24em",
-      textTransform: "uppercase",
-      fontFamily: MONO,
-      marginBottom: 14,
+      fontSize: 11, color: TEXT_MUTED, fontWeight: 700,
+      letterSpacing: "0.24em", textTransform: "uppercase",
+      fontFamily: MONO, marginBottom: 14,
     }, style || {})}>{children}</div>
   );
 }
 
+function TypingDots() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "14px 18px", background: CARD, border: "1px solid " + BORDER, borderRadius: "4px 16px 16px 16px", width: "fit-content" }}>
+      <span className="fa-dot" style={{ animationDelay: "0s" }} />
+      <span className="fa-dot" style={{ animationDelay: "0.15s" }} />
+      <span className="fa-dot" style={{ animationDelay: "0.3s" }} />
+    </div>
+  );
+}
+
+function ConfidenceBadge({ level, reason }) {
+  if (!level) return null;
+  var colors = { alta: "#2E9E5B", media: "#D9A400", baja: "#C44536" };
+  var labels = { alta: "Confianza alta", media: "Confianza media", baja: "Confianza baja" };
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 6, padding: "4px 10px", background: SURFACE, border: "1px solid " + BORDER, borderRadius: 999 }}
+      title={reason || ""}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: colors[level], flexShrink: 0 }} />
+      <span style={{ fontSize: 10, fontFamily: MONO, color: TEXT_DIM, letterSpacing: "0.04em" }}>
+        {labels[level]}{reason ? " · " + reason : ""}
+      </span>
+    </div>
+  );
+}
+
+function MessageBubble({ msg, name }) {
+  var isUser = msg.role === "user";
+  return (
+    <div className="fa-msg" style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", gap: 10, marginBottom: 6 }}>
+      {!isUser && <Avatar name={name} size={32} dark />}
+      <div style={{ maxWidth: "78%" }}>
+        <div style={{
+          padding: "14px 18px",
+          background: isUser ? YELLOW_SOFT : CARD,
+          border: isUser ? "1px solid " + YELLOW : "1px solid " + BORDER,
+          borderRadius: isUser ? "16px 16px 4px 16px" : "4px 16px 16px 16px",
+          color: TEXT, fontSize: 15, lineHeight: 1.7,
+          fontFamily: SANS, whiteSpace: "pre-wrap",
+        }}>
+          {msg.fileName && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(20,20,20,0.06)", borderRadius: 8, padding: "4px 10px", marginBottom: 8, fontSize: 12, fontFamily: MONO, color: TEXT_DIM }}>
+              <span>▤</span> {msg.fileName}
+            </div>
+          )}
+          <div>
+            {msg.text.split(/(\*\*[^*]+\*\*)/).map(function(part, i) {
+              if (part.startsWith("**") && part.endsWith("**"))
+                return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+              return <span key={i}>{part}</span>;
+            })}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: isUser ? "flex-end" : "flex-start", marginTop: 4, marginBottom: 12 }}>
+          {!isUser && <ConfidenceBadge level={msg.confidence} reason={msg.confidenceReason} />}
+          {msg.ts && <span style={{ fontSize: 10, color: TEXT_MUTED, fontFamily: MONO }}>{fmtTime(msg.ts)}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── VISTA CHAT (pantalla completa) ──────────────────────────────────────────
+function ChatView({ conv, pending, onBack, onSend }) {
+  var parsed = parseKey(conv.twinKey);
+  var area = TEAM[parsed.area];
+  var member = area.members[parsed.member];
+
+  var replyState = useState(""); var reply = replyState[0]; var setReply = replyState[1];
+  var fileState = useState(null); var attach = fileState[0]; var setAttach = fileState[1]; // {name, text} o {name, image:{base64,mime}}
+  var analyzingState = useState(false); var analyzing = analyzingState[0]; var setAnalyzing = analyzingState[1];
+  var inputRef = useRef(null);
+  var fileRef = useRef(null);
+  var endRef = useRef(null);
+
+  useEffect(function() { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [conv.messages, pending]);
+
+  var pickFile = async function(f) {
+    if (!f) return;
+    setAnalyzing(true);
+    try {
+      var result = await extractTextFromFile(f);
+      if (result && result.__isImage) {
+        setAttach({ name: f.name, image: { base64: result.base64, mime: result.mime } });
+      } else if (result && result.length > 0) {
+        setAttach({ name: f.name, text: result });
+      }
+    } catch (e) {}
+    setAnalyzing(false);
+  };
+
+  var send = function() {
+    if ((!reply.trim() && !attach) || pending) return;
+    var text = reply.trim() || "Revisa este material.";
+    onSend(conv.id, text, attach);
+    setReply("");
+    setAttach(null);
+    if (inputRef.current) inputRef.current.style.height = "auto";
+  };
+
+  var canSend = (reply.trim().length > 0 || attach) && !pending && !analyzing;
+
+  return (
+    <div style={{ paddingTop: 28, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 120px)" }}>
+      {/* Header del chat */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 20, borderBottom: "1px solid " + BORDER }}>
+        <button onClick={onBack} className="fa-hover" style={{
+          width: 40, height: 40, borderRadius: "50%", border: "1px solid " + BORDER,
+          background: CARD, cursor: "pointer", fontSize: 17, color: INK,
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>←</button>
+        <div style={{ width: 1, height: 28, background: BORDER }} />
+        <span style={{ fontSize: 10, fontFamily: MONO, color: TEXT_MUTED, letterSpacing: "0.22em", textTransform: "uppercase" }}>{area.name}</span>
+        <div style={{ flex: 1 }} />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "22px 0", borderBottom: "1px solid " + BORDER, marginBottom: 26 }}>
+        <Avatar name={member.name} size={54} dark />
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 19, color: INK, fontFamily: SANS }}>{member.name}</div>
+          <div style={{ fontSize: 12.5, color: TEXT_MUTED, fontFamily: SANS, marginTop: 3 }}>Conversación iniciada {fmtTime(conv.startedAt)}</div>
+        </div>
+      </div>
+
+      {/* Mensajes */}
+      <div style={{ flex: 1 }}>
+        {conv.messages.map(function(msg, i) {
+          return <MessageBubble key={i} msg={msg} name={member.name} />;
+        })}
+        {pending && <div className="fa-msg" style={{ display: "flex", gap: 10, marginBottom: 12 }}><Avatar name={member.name} size={32} dark /><TypingDots /></div>}
+        <div ref={endRef} />
+      </div>
+
+      {/* Barra de conversación */}
+      <div style={{ position: "sticky", bottom: 20, marginTop: 24 }}>
+        {attach && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: CARD, border: "1px solid " + BORDER, borderRadius: 12, padding: "8px 14px", marginBottom: 8, boxShadow: "0 2px 8px rgba(20,20,20,0.06)" }}>
+            <span style={{ fontSize: 13 }}>{attach.image ? "▣" : "▤"}</span>
+            <span style={{ fontSize: 12.5, fontFamily: MONO, color: TEXT_DIM }}>{attach.name}</span>
+            <button onClick={function() { setAttach(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED, fontSize: 13, padding: 0 }}>✕</button>
+          </div>
+        )}
+        {analyzing && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: CARD, border: "1px solid " + BORDER, borderRadius: 12, padding: "8px 14px", marginBottom: 8 }}>
+            <div className="fa-spinner" />
+            <span style={{ fontSize: 12, fontFamily: MONO, color: TEXT_DIM }}>Analizando archivo...</span>
+          </div>
+        )}
+        <div style={{
+          display: "flex", alignItems: "flex-end", gap: 8,
+          background: CARD, border: "1px solid " + BORDER, borderRadius: 26,
+          padding: "8px 8px 8px 20px", boxShadow: "0 4px 20px rgba(20,20,20,0.08)",
+        }}>
+          <textarea
+            ref={inputRef}
+            value={reply}
+            rows={1}
+            onChange={function(e) { setReply(e.target.value); }}
+            onInput={function(e) { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px"; }}
+            onKeyDown={function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder="Escribe tu pregunta..."
+            disabled={pending}
+            style={{
+              flex: 1, border: "none", background: "transparent", resize: "none",
+              color: INK, fontSize: 15, lineHeight: 1.6, fontFamily: SANS,
+              padding: "8px 0", maxHeight: 160,
+            }}
+          />
+          <input ref={fileRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp" style={{ display: "none" }}
+            onChange={function(e) { var f = e.target.files && e.target.files[0]; if (f) pickFile(f); e.target.value = ""; }} />
+          <button onClick={function() { if (fileRef.current) fileRef.current.click(); }} className="fa-hover" title="Adjuntar archivo" style={{
+            width: 40, height: 40, borderRadius: "50%", border: "none", background: "transparent",
+            cursor: "pointer", fontSize: 17, color: TEXT_DIM, flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>📎</button>
+          <button onClick={send} disabled={!canSend} className={canSend ? "fa-send" : ""} style={{
+            width: 42, height: 42, borderRadius: "50%",
+            background: canSend ? YELLOW : "#eeede8",
+            color: canSend ? INK : "#aaa",
+            border: "none", fontSize: 17, fontWeight: 900,
+            cursor: canSend ? "pointer" : "default", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "transform 0.1s, background 0.15s",
+          }}>→</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TARJETA DE ÁREA ─────────────────────────────────────────────────────────
 function AreaCard({ areaId, area, selected, onToggle }) {
   var memberIds = Object.keys(area.members);
   var anySelected = memberIds.some(function(m) { return selected.includes(selectionKey(areaId, m)); });
   return (
-    <div style={{
+    <div className="fa-card" style={{
       border: "1px solid " + (anySelected ? INK : BORDER),
-      borderRadius: 16,
-      background: CARD,
-      padding: 18,
-      transition: "border-color 0.15s",
+      borderRadius: 16, background: CARD, padding: 18,
+      transition: "border-color 0.15s, transform 0.15s, box-shadow 0.15s",
     }}>
       <div style={{
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-        background: YELLOW_TINT,
-        border: "1px solid " + YELLOW,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 18,
-        color: INK,
-        marginBottom: 12,
-        fontFamily: MONO,
+        width: 40, height: 40, borderRadius: 10, background: YELLOW_TINT,
+        border: "1px solid " + YELLOW, display: "flex", alignItems: "center",
+        justifyContent: "center", fontSize: 18, color: INK, marginBottom: 12, fontFamily: MONO,
       }}>{area.icon}</div>
-
-      <div style={{
-        fontWeight: 800,
-        color: INK,
-        fontSize: 14,
-        fontFamily: MONO,
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-        marginBottom: 4,
-      }}>{area.name}</div>
-
-      <div style={{
-        fontSize: 12.5,
-        color: TEXT_DIM,
-        fontFamily: SANS,
-        lineHeight: 1.45,
-        marginBottom: 14,
-        minHeight: 36,
-      }}>{area.desc}</div>
-
+      <div style={{ fontWeight: 800, color: INK, fontSize: 14, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{area.name}</div>
+      <div style={{ fontSize: 12.5, color: TEXT_DIM, fontFamily: SANS, lineHeight: 1.45, marginBottom: 14, minHeight: 36 }}>{area.desc}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {memberIds.map(function(memberId) {
           var member = area.members[memberId];
@@ -357,39 +549,19 @@ function AreaCard({ areaId, area, selected, onToggle }) {
           var isOn = selected.includes(key);
           return (
             <button key={memberId} onClick={function() { onToggle(key); }} style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 10px",
-              border: "none",
-              borderRadius: 8,
+              display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
+              border: "none", borderRadius: 8,
               background: isOn ? YELLOW_TINT : "transparent",
-              cursor: "pointer",
-              textAlign: "left",
-              width: "100%",
-              transition: "background 0.1s",
+              cursor: "pointer", textAlign: "left", width: "100%", transition: "background 0.1s",
             }}>
               <span style={{
-                width: 13,
-                height: 13,
-                borderRadius: 4,
+                width: 13, height: 13, borderRadius: 4,
                 border: isOn ? "none" : "1.5px solid #b5b3ac",
                 background: isOn ? YELLOW : "transparent",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                fontSize: 9,
-                color: INK,
-                fontWeight: 900,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, fontSize: 9, color: INK, fontWeight: 900,
               }}>{isOn ? "✓" : ""}</span>
-              <span style={{
-                color: isOn ? INK : TEXT_DIM,
-                fontWeight: isOn ? 700 : 500,
-                fontSize: 12.5,
-                fontFamily: MONO,
-                letterSpacing: "0.01em",
-              }}>{member.name}</span>
+              <span style={{ color: isOn ? INK : TEXT_DIM, fontWeight: isOn ? 700 : 500, fontSize: 12.5, fontFamily: MONO, letterSpacing: "0.01em" }}>{member.name}</span>
             </button>
           );
         })}
@@ -398,160 +570,7 @@ function AreaCard({ areaId, area, selected, onToggle }) {
   );
 }
 
-function MessageBubble({ role, text, name }) {
-  var isUser = role === "user";
-  return (
-    <div style={{
-      display: "flex",
-      justifyContent: isUser ? "flex-end" : "flex-start",
-      gap: 10,
-      marginBottom: 18,
-    }}>
-      {!isUser && <Avatar name={name} size={32} dark />}
-      <div style={{
-        maxWidth: "78%",
-        padding: "14px 18px",
-        background: isUser ? YELLOW_SOFT : CARD,
-        border: isUser ? "1px solid " + YELLOW : "1px solid " + BORDER,
-        borderRadius: isUser ? "16px 16px 4px 16px" : "4px 16px 16px 16px",
-        color: TEXT,
-        fontSize: 15,
-        lineHeight: 1.7,
-        fontFamily: SANS,
-        whiteSpace: "pre-wrap",
-      }}>
-        {text.split(/(\*\*[^*]+\*\*)/).map(function(part, i) {
-          if (part.startsWith("**") && part.endsWith("**"))
-            return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
-          return <span key={i}>{part}</span>;
-        })}
-      </div>
-    </div>
-  );
-}
-
-function TwinCard({ twinKey, area, member, conversation, loading, onReply }) {
-  var replyState = useState(""); var reply = replyState[0]; var setReply = replyState[1];
-  var sendState = useState(false); var sending = sendState[0]; var setSending = sendState[1];
-  var endRef = useRef(null);
-  useEffect(function() { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [conversation]);
-
-  var handleReply = async function() {
-    if (!reply.trim() || sending) return;
-    var msg = reply.trim();
-    setReply(""); setSending(true);
-    await onReply(twinKey, msg);
-    setSending(false);
-  };
-
-  var visible = (conversation || []).filter(function(m) { return m.display !== false; });
-
-  return (
-    <div id={"card-" + twinKey} style={{
-      border: "1px solid " + BORDER,
-      borderRadius: 20,
-      background: CARD,
-      marginBottom: 28,
-      overflow: "hidden",
-      boxShadow: "0 1px 3px rgba(20,20,20,0.04)",
-    }}>
-      <div style={{
-        padding: "16px 22px",
-        borderBottom: "1px solid " + BORDER,
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        background: SURFACE,
-      }}>
-        <Avatar name={member.name} size={42} dark />
-        <div>
-          <div style={{
-            color: TEXT_MUTED,
-            fontSize: 10,
-            fontFamily: MONO,
-            textTransform: "uppercase",
-            letterSpacing: "0.22em",
-            marginBottom: 3,
-          }}>{area.name}</div>
-          <div style={{
-            fontWeight: 800,
-            color: INK,
-            fontSize: 16,
-            fontFamily: SANS,
-          }}>{member.name}</div>
-        </div>
-      </div>
-
-      <div style={{ padding: "22px 22px 8px", maxHeight: 560, overflowY: "auto", background: "#FDFDFB" }}>
-        {visible.map(function(msg, i) {
-          return <MessageBubble key={i} role={msg.role} text={msg.text} name={member.name} />;
-        })}
-        {loading && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0 16px" }}>
-            <div style={{
-              width: 13,
-              height: 13,
-              border: "2px solid #ddd",
-              borderTopColor: YELLOW,
-              borderRadius: "50%",
-              animation: "spin 0.7s linear infinite",
-              flexShrink: 0,
-            }} />
-            <span style={{
-              fontFamily: MONO,
-              fontSize: 11,
-              color: TEXT_MUTED,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-            }}>pensando...</span>
-          </div>
-        )}
-        <div ref={endRef} />
-      </div>
-
-      {visible.length > 0 && !loading && (
-        <div style={{ padding: "14px 22px 18px", borderTop: "1px solid " + BORDER, display: "flex", gap: 10, alignItems: "center", background: CARD }}>
-          <input
-            value={reply}
-            onChange={function(e) { setReply(e.target.value); }}
-            onKeyDown={function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
-            placeholder="Escribe tu pregunta..."
-            disabled={sending}
-            style={{
-              flex: 1,
-              padding: "12px 18px",
-              background: SURFACE,
-              border: "1px solid " + BORDER,
-              borderRadius: 999,
-              color: INK,
-              fontSize: 14,
-              fontFamily: SANS,
-            }}
-          />
-          <button
-            onClick={handleReply}
-            disabled={!reply.trim() || sending}
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: "50%",
-              background: reply.trim() && !sending ? YELLOW : "#eeede8",
-              color: reply.trim() && !sending ? INK : "#aaa",
-              border: "none",
-              fontSize: 17,
-              fontWeight: 900,
-              cursor: sending ? "wait" : "pointer",
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}>→</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
+// ─── UPLOAD (pregunta inicial) ───────────────────────────────────────────────
 function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
   var inputRef = useRef(null);
   var dragState = useState(false); var dragging = dragState[0]; var setDragging = dragState[1];
@@ -583,19 +602,17 @@ function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
           onClick={function() { if (inputRef.current) inputRef.current.click(); }}
           style={{
             border: "1.5px dashed " + (dragging ? INK : "#c9c7c0"),
-            borderRadius: 14,
-            padding: "22px 16px",
-            textAlign: "center",
-            cursor: "pointer",
+            borderRadius: 14, padding: "22px 16px", textAlign: "center", cursor: "pointer",
             background: dragging ? YELLOW_TINT : SURFACE,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 14,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 14,
+            transition: "background 0.15s, border-color 0.15s",
           }}>
           <input ref={inputRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp" style={{ display: "none" }} onChange={function(e) { var f = e.target.files && e.target.files[0]; if (f) readFile(f); }} />
           {processing
-            ? <p style={{ color: TEXT_DIM, fontSize: 12, margin: 0, fontFamily: MONO, letterSpacing: "0.1em" }}>Leyendo...</p>
+            ? <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="fa-spinner" />
+                <p style={{ color: TEXT_DIM, fontSize: 12, margin: 0, fontFamily: MONO, letterSpacing: "0.1em" }}>Analizando archivo...</p>
+              </div>
             : <>
                 <span style={{ fontSize: 18, color: TEXT_DIM }}>↥</span>
                 <div style={{ textAlign: "left" }}>
@@ -620,39 +637,22 @@ function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
 }
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar() {
+function Sidebar({ onHome }) {
   var iconStyle = {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 17,
-    color: "#8d8b85",
-    cursor: "default",
-    position: "relative",
+    width: 44, height: 44, borderRadius: 12,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontSize: 17, color: "#8d8b85", cursor: "default", position: "relative",
   };
   return (
     <aside style={{
-      width: 68,
-      background: INK,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      paddingTop: 26,
-      paddingBottom: 26,
-      flexShrink: 0,
+      width: 68, background: INK,
+      display: "flex", flexDirection: "column", alignItems: "center",
+      paddingTop: 26, paddingBottom: 26, flexShrink: 0,
     }}>
-      <div style={{
-        color: "#fff",
-        fontFamily: SANS,
-        fontWeight: 800,
-        fontSize: 22,
-        marginBottom: 44,
-        letterSpacing: "-0.02em",
-      }}>F<span style={{ color: YELLOW }}>.</span></div>
-
+      <button onClick={onHome} style={{
+        color: "#fff", fontFamily: SANS, fontWeight: 800, fontSize: 22,
+        marginBottom: 44, letterSpacing: "-0.02em", background: "none", border: "none", cursor: "pointer",
+      }}>F<span style={{ color: YELLOW }}>.</span></button>
       <div style={Object.assign({}, iconStyle, { color: YELLOW, background: "rgba(242,194,48,0.12)" })}>
         <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />
         ✎
@@ -668,14 +668,37 @@ export default function Home() {
   var selState = useState(["direccion:ricardo"]); var selected = selState[0]; var setSelected = selState[1];
   var qState = useState(""); var question = qState[0]; var setQuestion = qState[1];
   var delState = useState(""); var deliverable = delState[0]; var setDeliverable = delState[1];
-  var convState = useState({}); var conversations = convState[0]; var setConversations = convState[1];
-  var loadState = useState({}); var loading = loadState[0]; var setLoading = loadState[1];
+  var histState = useState([]); var history = histState[0]; var setHistory = histState[1];
+  var pendState = useState({}); var pending = pendState[0]; var setPending = pendState[1];
   var runState = useState(false); var running = runState[0]; var setRunning = runState[1];
   var attachState = useState(false); var showAttach = attachState[0]; var setShowAttach = attachState[1];
   var fnState = useState(null); var fileName = fnState[0]; var setFileName = fnState[1];
   var imgState = useState(null); var imageData = imgState[0]; var setImageData = imgState[1];
-  var firstQState = useState({}); var firstQuestions = firstQState[0]; var setFirstQuestions = firstQState[1];
-  var resultsRef = useRef(null);
+  var viewState = useState({ type: "home" }); var view = viewState[0]; var setView = viewState[1];
+  var searchState = useState(""); var search = searchState[0]; var setSearch = searchState[1];
+  var loadedRef = useRef(false);
+  var askInputRef = useRef(null);
+
+  // Cargar historial de localStorage al montar
+  useEffect(function() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (raw) setHistory(JSON.parse(raw));
+    } catch (e) {}
+    loadedRef.current = true;
+  }, []);
+
+  // Persistir historial cuando cambia
+  useEffect(function() {
+    if (!loadedRef.current) return;
+    try { localStorage.setItem(LS_KEY, JSON.stringify(history)); } catch (e) {}
+  }, [history]);
+
+  var updateConv = function(id, updater) {
+    setHistory(function(prev) {
+      return prev.map(function(c) { return c.id === id ? updater(c) : c; });
+    });
+  };
 
   var toggleTwin = function(key) {
     setSelected(function(prev) {
@@ -684,6 +707,7 @@ export default function Home() {
   };
   var clearFile = function() { setDeliverable(""); setFileName(null); setShowAttach(false); setImageData(null); };
   var hasContent = question.trim().length > 0;
+  var canRun = !running && hasContent && selected.length > 0;
 
   var handleFileContent = function(result, name) {
     if (result && result.__isImage) {
@@ -697,15 +721,11 @@ export default function Home() {
   };
 
   var runEvaluation = async function() {
-    if (!hasContent || selected.length === 0) return;
-    setRunning(true); setConversations({});
-    var initLoading = {}; selected.forEach(function(k) { initLoading[k] = true; }); setLoading(initLoading);
-    setTimeout(function() { if (resultsRef.current) resultsRef.current.scrollIntoView({ behavior: "smooth" }); }, 200);
+    if (!canRun) return;
+    setRunning(true);
 
     var q = question.trim();
-    var newFirst = {};
-    selected.forEach(function(k) { newFirst[k] = q; });
-    setFirstQuestions(newFirst);
+    var now = Date.now();
 
     var userText = q;
     if (!imageData && deliverable.trim().length > 0) {
@@ -714,50 +734,128 @@ export default function Home() {
       userText += "\n\n[Imagen adjunta: " + fileName + "]";
     }
 
-    for (var i = 0; i < selected.length; i++) {
-      var key = selected[i];
+    var img = imageData;
+    var fn = fileName;
+    var sel = selected.slice();
+
+    // Crear conversaciones nuevas por adelantado
+    var newConvs = sel.map(function(key, i) {
+      return {
+        id: key + "-" + now + "-" + i,
+        twinKey: key,
+        firstQuestion: q,
+        startedAt: now,
+        updatedAt: now,
+        messages: [{ role: "user", text: q, apiContent: userText, fileName: fn || null, ts: now }],
+      };
+    });
+
+    setHistory(function(prev) { return newConvs.concat(prev); });
+    var initPending = {};
+    newConvs.forEach(function(c) { initPending[c.id] = true; });
+    setPending(function(prev) { return Object.assign({}, prev, initPending); });
+
+    // Si es un solo twin, abrir el chat de inmediato
+    if (newConvs.length === 1) setView({ type: "chat", id: newConvs[0].id });
+
+    // Limpiar formulario
+    setQuestion(""); clearFile();
+    if (askInputRef.current) askInputRef.current.style.height = "auto";
+
+    for (var i = 0; i < newConvs.length; i++) {
+      var conv = newConvs[i];
       if (i > 0) {
         await new Promise(function(resolve) { setTimeout(resolve, 20000); });
       }
-      var parsed = parseKey(key);
+      var parsed = parseKey(conv.twinKey);
       var member = TEAM[parsed.area].members[parsed.member];
       var msgs = [{ role: "user", content: userText }];
-      var result = await callTwin(member.prompt, msgs, imageData ? imageData.base64 : null, imageData ? imageData.mime : null);
-      setConversations(function(prev) {
-        var next = Object.assign({}, prev);
-        next[key] = [
-          { role: "user", text: q, display: true },
-          { role: "assistant", text: result }
-        ];
-        return next;
+      var raw = await callTwin(member.prompt, msgs, img ? img.base64 : null, img ? img.mime : null);
+      var parsedResp = parseConfidence(raw);
+      var ts = Date.now();
+      updateConv(conv.id, function(c) {
+        return Object.assign({}, c, {
+          updatedAt: ts,
+          messages: c.messages.concat([{ role: "assistant", text: parsedResp.clean, confidence: parsedResp.level, confidenceReason: parsedResp.reason, ts: ts }]),
+        });
       });
-      setLoading(function(prev) { var next = Object.assign({}, prev); next[key] = false; return next; });
+      setPending(function(prev) { var next = Object.assign({}, prev); delete next[conv.id]; return next; });
     }
     setRunning(false);
   };
 
-  var handleReply = async function(twinKey, replyText) {
-    var conv = conversations[twinKey] || [];
-    var newConv = conv.concat([{ role: "user", text: replyText }]);
-    setConversations(function(prev) { var next = Object.assign({}, prev); next[twinKey] = newConv; return next; });
-    setLoading(function(prev) { var next = Object.assign({}, prev); next[twinKey] = true; return next; });
-    var parsed = parseKey(twinKey);
+  var handleSend = async function(convId, text, attach) {
+    var conv = history.find(function(c) { return c.id === convId; });
+    if (!conv) return;
+
+    var apiContent = text;
+    var img = null;
+    if (attach && attach.text) {
+      apiContent += "\n\n---\nMATERIAL DE REFERENCIA (" + attach.name + "):\n" + attach.text;
+    } else if (attach && attach.image) {
+      apiContent += "\n\n[Imagen adjunta: " + attach.name + "]";
+      img = attach.image;
+    }
+
+    var ts = Date.now();
+    var userMsg = { role: "user", text: text, apiContent: apiContent, fileName: attach ? attach.name : null, ts: ts };
+    var newMessages = conv.messages.concat([userMsg]);
+
+    updateConv(convId, function(c) { return Object.assign({}, c, { updatedAt: ts, messages: newMessages }); });
+    setPending(function(prev) { var next = Object.assign({}, prev); next[convId] = true; return next; });
+
+    var parsed = parseKey(conv.twinKey);
     var member = TEAM[parsed.area].members[parsed.member];
-    var apiMessages = newConv.map(function(m) { return { role: m.role, content: m.text }; });
-    var result = await callTwin(member.prompt, apiMessages);
-    setConversations(function(prev) { var next = Object.assign({}, prev); next[twinKey] = prev[twinKey].concat([{ role: "assistant", text: result }]); return next; });
-    setLoading(function(prev) { var next = Object.assign({}, prev); next[twinKey] = false; return next; });
+    var apiMessages = newMessages.map(function(m) { return { role: m.role, content: m.apiContent || m.text }; });
+
+    var raw = await callTwin(member.prompt, apiMessages, img ? img.base64 : null, img ? img.mime : null);
+    var parsedResp = parseConfidence(raw);
+    var ts2 = Date.now();
+    updateConv(convId, function(c) {
+      return Object.assign({}, c, {
+        updatedAt: ts2,
+        messages: c.messages.concat([{ role: "assistant", text: parsedResp.clean, confidence: parsedResp.level, confidenceReason: parsedResp.reason, ts: ts2 }]),
+      });
+    });
+    setPending(function(prev) { var next = Object.assign({}, prev); delete next[convId]; return next; });
   };
 
-  var canRun = !running && hasContent && selected.length > 0;
+  var deleteConv = function(id) {
+    setHistory(function(prev) { return prev.filter(function(c) { return c.id !== id; }); });
+    if (view.type === "chat" && view.id === id) setView({ type: "home" });
+  };
+
   var teamEntries = Object.entries(TEAM);
-  var activeConversations = Object.keys(conversations);
+  var currentConv = view.type === "chat" ? history.find(function(c) { return c.id === view.id; }) : null;
+
+  var filteredHistory = history.filter(function(c) {
+    if (!search.trim()) return true;
+    var parsed = parseKey(c.twinKey);
+    var member = TEAM[parsed.area] && TEAM[parsed.area].members[parsed.member];
+    var name = member ? member.name : "";
+    var s = search.toLowerCase();
+    return name.toLowerCase().indexOf(s) !== -1 || (c.firstQuestion || "").toLowerCase().indexOf(s) !== -1;
+  }).sort(function(a, b) { return b.updatedAt - a.updatedAt; });
 
   return (
     <div style={{ minHeight: "100vh", background: PAGE_BG, color: TEXT, fontFamily: SANS, padding: "28px 16px" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        textarea:focus, input:focus { outline: none !important; border-color: #141414 !important; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-4px); opacity: 1; } }
+        .fa-msg { animation: fadeUp 0.25s ease both; }
+        .fa-dot { width: 6px; height: 6px; border-radius: 50%; background: #98968F; display: inline-block; animation: bounce 1.2s infinite; }
+        .fa-spinner { width: 13px; height: 13px; border: 2px solid #ddd; border-top-color: ${YELLOW}; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+        .fa-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(20,20,20,0.07); }
+        .fa-hover { transition: background 0.15s, transform 0.1s; }
+        .fa-hover:hover { background: ${SURFACE}; }
+        .fa-send:hover { transform: scale(1.06); }
+        .fa-send:active { transform: scale(0.96); }
+        .fa-chip { transition: background 0.15s, border-color 0.15s, transform 0.1s; }
+        .fa-chip:hover { background: ${YELLOW_TINT}; border-color: ${YELLOW}; transform: translateY(-1px); }
+        .fa-histitem { transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; }
+        .fa-histitem:hover { border-color: ${INK}; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,20,20,0.06); }
+        textarea:focus, input:focus { outline: none !important; }
         textarea::placeholder, input::placeholder { color: #b0aea7; }
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 4px; }
@@ -767,278 +865,205 @@ export default function Home() {
       `}</style>
 
       <div style={{
-        maxWidth: 1180,
-        margin: "0 auto",
-        display: "flex",
-        borderRadius: 24,
-        overflow: "hidden",
-        background: CARD,
+        maxWidth: 1180, margin: "0 auto", display: "flex",
+        borderRadius: 24, overflow: "hidden", background: CARD,
         boxShadow: "0 4px 32px rgba(20,20,20,0.08)",
       }}>
-        <Sidebar />
+        <Sidebar onHome={function() { setView({ type: "home" }); }} />
 
-        <main style={{ flex: 1, padding: "0 56px 90px", position: "relative", minWidth: 0 }}>
+        <main style={{ flex: 1, padding: "0 56px 60px", position: "relative", minWidth: 0 }}>
 
-          {/* Forma amarilla decorativa */}
-          <div style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            width: 210,
-            height: 190,
-            background: YELLOW,
-            borderBottomLeftRadius: "100%",
-          }} />
-
-          {/* ── HEADER ── */}
-          <div style={{ paddingTop: 56, paddingBottom: 40, marginBottom: 44, borderBottom: "1px solid " + BORDER, position: "relative" }}>
-            <Eyebrow style={{ marginBottom: 20 }}>Fahrenheit DDB</Eyebrow>
-
-            <h1 style={{
-              fontSize: 76,
-              margin: 0,
-              letterSpacing: "-0.03em",
-              fontFamily: SANS,
-              color: INK,
-              lineHeight: 1,
-              fontWeight: 400,
-            }}>Fahre<span style={{ fontWeight: 800 }}>AI</span></h1>
-
-            <div style={{
-              fontSize: 20,
-              color: INK,
-              margin: "10px 0 0",
-              fontFamily: SANS,
-            }}>by <span style={{ fontWeight: 800 }}>fahrenheit</span><sup style={{ fontSize: 10, fontWeight: 800 }}>DDB</sup></div>
-
-            <p style={{
-              fontSize: 15,
-              color: TEXT_DIM,
-              margin: "22px 0 0",
-              fontFamily: SANS,
-              lineHeight: 1.6,
-              maxWidth: 460,
-            }}>Una herramienta compartida para hacer mejores preguntas, obtener nuevas perspectivas y seguir aprendiendo juntos.</p>
-
-            <div style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              border: "1px solid " + BORDER,
-              borderRadius: 999,
-              padding: "8px 16px",
-              background: SURFACE,
-              marginTop: 22,
-            }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: YELLOW, flexShrink: 0 }} />
-              <span style={{
-                color: TEXT_DIM,
-                fontSize: 11.5,
-                fontFamily: MONO,
-                letterSpacing: "0.04em",
-              }}>Límite de 1,000 consultas por día entre todos los usuarios</span>
-            </div>
-          </div>
-
-          {/* ── PANEL ── */}
-          <div style={{ marginBottom: 48 }}>
-            <Eyebrow>Elige a quién quieres consultar</Eyebrow>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(215px, 1fr))",
-              gap: 14,
-            }}>
-              {teamEntries.map(function(entry) {
-                return <AreaCard
-                  key={entry[0]}
-                  areaId={entry[0]}
-                  area={entry[1]}
-                  selected={selected}
-                  onToggle={toggleTwin}
-                />;
-              })}
-            </div>
-          </div>
-
-          {/* ── PREGUNTA ── */}
-          <div style={{ marginBottom: 22 }}>
-            <Eyebrow>Tu pregunta <span style={{ color: YELLOW, fontSize: 13 }}>•</span></Eyebrow>
-            <div style={{ position: "relative" }}>
-              <textarea
-                value={question}
-                onChange={function(e) { setQuestion(e.target.value); }}
-                placeholder="Escribe tu pregunta aquí..."
-                rows={4}
-                style={{
-                  width: "100%",
-                  padding: "16px 18px 32px",
-                  background: CARD,
-                  border: "1px solid " + BORDER,
-                  borderRadius: 14,
-                  color: INK,
-                  fontSize: 15,
-                  lineHeight: 1.7,
-                  fontFamily: SANS,
-                  resize: "vertical",
-                }}
-              />
+          {view.type === "chat" && currentConv ? (
+            <ChatView
+              conv={currentConv}
+              pending={!!pending[currentConv.id]}
+              onBack={function() { setView({ type: "home" }); }}
+              onSend={handleSend}
+            />
+          ) : (
+            <>
+              {/* Forma amarilla decorativa */}
               <div style={{
-                position: "absolute",
-                bottom: 12,
-                right: 16,
-                fontSize: 11,
-                color: TEXT_MUTED,
-                fontFamily: MONO,
-              }}>{question.length} / 500</div>
-            </div>
-          </div>
+                position: "absolute", top: 0, right: 0,
+                width: 210, height: 190, background: YELLOW,
+                borderBottomLeftRadius: "100%",
+              }} />
 
-          {/* ── ADJUNTO ── */}
-          <div style={{ marginBottom: 36 }}>
-            {!showAttach && !fileName && deliverable.trim().length === 0 ? (
-              <button
-                onClick={function() { setShowAttach(true); }}
-                style={{
-                  background: SURFACE,
-                  border: "1.5px dashed #c9c7c0",
-                  borderRadius: 14,
-                  padding: "13px 16px",
-                  color: TEXT_DIM,
-                  fontSize: 11.5,
-                  fontFamily: MONO,
-                  cursor: "pointer",
-                  width: "100%",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                }}>
-                + Material de referencia (opcional)
-              </button>
-            ) : (
-              <div>
-                <Eyebrow>Material de referencia <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: "0.05em" }}>(opcional)</span></Eyebrow>
-                <div style={{ marginBottom: 10 }}>
-                  <FileUpload onFileContent={handleFileContent} fileName={fileName} onClear={clearFile} imagePreview={imageData ? imageData.preview : null} />
+              {/* ── HEADER ── */}
+              <div style={{ paddingTop: 56, paddingBottom: 40, marginBottom: 44, borderBottom: "1px solid " + BORDER, position: "relative" }}>
+                <Eyebrow style={{ marginBottom: 20 }}>Fahrenheit DDB</Eyebrow>
+                <h1 style={{
+                  fontSize: 76, margin: 0, letterSpacing: "-0.03em",
+                  fontFamily: SANS, color: INK, lineHeight: 1, fontWeight: 400,
+                }}>Fahre<span style={{ fontWeight: 800 }}>AI</span></h1>
+                <div style={{ fontSize: 20, color: INK, margin: "10px 0 0", fontFamily: SANS }}>
+                  by <span style={{ fontWeight: 800 }}>fahrenheit</span><sup style={{ fontSize: 10, fontWeight: 800 }}>DDB</sup>
                 </div>
-                {!fileName && (
+                <p style={{ fontSize: 15, color: TEXT_DIM, margin: "22px 0 0", fontFamily: SANS, lineHeight: 1.6, maxWidth: 460 }}>
+                  Una herramienta compartida para hacer mejores preguntas, obtener nuevas perspectivas y seguir aprendiendo juntos.
+                </p>
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 10,
+                  border: "1px solid " + BORDER, borderRadius: 999,
+                  padding: "8px 16px", background: SURFACE, marginTop: 22,
+                }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: YELLOW, flexShrink: 0 }} />
+                  <span style={{ color: TEXT_DIM, fontSize: 11.5, fontFamily: MONO, letterSpacing: "0.04em" }}>
+                    Límite de 1,000 consultas por día entre todos los usuarios
+                  </span>
+                </div>
+              </div>
+
+              {/* ── PANEL ── */}
+              <div style={{ marginBottom: 44 }}>
+                <Eyebrow>Elige a quién quieres consultar</Eyebrow>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(215px, 1fr))", gap: 14 }}>
+                  {teamEntries.map(function(entry) {
+                    return <AreaCard key={entry[0]} areaId={entry[0]} area={entry[1]} selected={selected} onToggle={toggleTwin} />;
+                  })}
+                </div>
+              </div>
+
+              {/* ── PREGUNTA (barra estilo ChatGPT) ── */}
+              <div style={{ marginBottom: 14 }}>
+                <Eyebrow>Tu pregunta <span style={{ color: YELLOW, fontSize: 13 }}>•</span></Eyebrow>
+                <div style={{
+                  display: "flex", alignItems: "flex-end", gap: 8,
+                  background: CARD, border: "1px solid " + BORDER, borderRadius: 26,
+                  padding: "8px 8px 8px 20px", boxShadow: "0 2px 14px rgba(20,20,20,0.05)",
+                }}>
                   <textarea
-                    value={deliverable}
-                    onChange={function(e) { setDeliverable(e.target.value); }}
-                    placeholder="O pega aquí el brief, la propuesta, el insight..."
-                    rows={5}
+                    ref={askInputRef}
+                    value={question}
+                    rows={1}
+                    onChange={function(e) { setQuestion(e.target.value); }}
+                    onInput={function(e) { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px"; }}
+                    onKeyDown={function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runEvaluation(); } }}
+                    placeholder="Escribe tu pregunta aquí..."
                     style={{
-                      width: "100%",
-                      padding: "16px 18px",
-                      background: CARD,
-                      border: "1px solid " + BORDER,
-                      borderRadius: 14,
-                      color: INK,
-                      fontSize: 14.5,
-                      lineHeight: 1.7,
-                      resize: "vertical",
-                      fontFamily: SANS,
+                      flex: 1, border: "none", background: "transparent", resize: "none",
+                      color: INK, fontSize: 15, lineHeight: 1.6, fontFamily: SANS,
+                      padding: "10px 0", maxHeight: 200,
                     }}
                   />
-                )}
+                  <button onClick={function() { setShowAttach(!showAttach); }} className="fa-hover" title="Adjuntar material" style={{
+                    width: 40, height: 40, borderRadius: "50%", border: "none",
+                    background: (showAttach || fileName) ? YELLOW_TINT : "transparent",
+                    cursor: "pointer", fontSize: 17, color: TEXT_DIM, flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>📎</button>
+                  <button onClick={runEvaluation} disabled={!canRun} className={canRun ? "fa-send" : ""} style={{
+                    width: 44, height: 44, borderRadius: "50%",
+                    background: canRun ? YELLOW : "#eeede8",
+                    color: canRun ? INK : "#aaa",
+                    border: "none", fontSize: 18, fontWeight: 900,
+                    cursor: canRun ? "pointer" : "default", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "transform 0.1s, background 0.15s",
+                  }}>{running ? <div className="fa-spinner" style={{ borderTopColor: INK }} /> : "→"}</button>
+                </div>
+                <div style={{ fontSize: 11, color: TEXT_MUTED, fontFamily: MONO, marginTop: 8, paddingLeft: 6 }}>
+                  Se enviará a {selected.length} twin{selected.length !== 1 ? "s" : ""} · {running ? "consultando en secuencia..." : "las consultas van una por una para respetar el límite compartido"}
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* ── CTA ── */}
-          <button
-            onClick={runEvaluation}
-            disabled={!canRun}
-            style={{
-              width: "100%",
-              padding: "18px 0",
-              fontSize: 13.5,
-              fontWeight: 800,
-              fontFamily: MONO,
-              background: canRun ? YELLOW : "#f0efe9",
-              color: canRun ? INK : "#aaa",
-              border: "none",
-              borderRadius: 12,
-              cursor: canRun ? "pointer" : "default",
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
-              transition: "all 0.1s",
-            }}
-          >{running ? "Consultando..." : "Preguntar → " + selected.length + " twin" + (selected.length !== 1 ? "s" : "")}</button>
-
-          {/* ── CONVERSACIONES RECIENTES ── */}
-          {activeConversations.length > 0 && !running && (
-            <div style={{ marginTop: 40 }}>
-              <Eyebrow>Conversaciones recientes</Eyebrow>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {activeConversations.map(function(key) {
-                  var parsed = parseKey(key);
-                  var area = TEAM[parsed.area];
-                  var member = area.members[parsed.member];
+              {/* ── PROMPTS SUGERIDOS ── */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 26 }}>
+                {SUGGESTED_PROMPTS.map(function(p) {
                   return (
-                    <button key={key}
-                      onClick={function() { var el = document.getElementById("card-" + key); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        padding: "12px 16px",
-                        background: CARD,
-                        border: "1px solid " + BORDER,
-                        borderRadius: 14,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        width: "100%",
-                      }}>
-                      <Avatar name={member.name} size={34} dark />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS }}>{member.name} <span style={{ fontWeight: 400, color: TEXT_MUTED, fontSize: 12 }}>· {area.name}</span></div>
-                        <div style={{ fontSize: 12.5, color: TEXT_DIM, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{firstQuestions[key] || ""}</div>
-                      </div>
-                      <span style={{ color: TEXT_MUTED, fontSize: 15 }}>→</span>
-                    </button>
+                    <button key={p} className="fa-chip" onClick={function() { setQuestion(function(prev) { return prev.trim() ? prev + " " + p : p; }); }} style={{
+                      background: SURFACE, border: "1px solid " + BORDER, borderRadius: 999,
+                      padding: "8px 16px", fontSize: 12.5, fontFamily: SANS, color: TEXT_DIM,
+                      cursor: "pointer",
+                    }}>{p}</button>
                   );
                 })}
               </div>
-            </div>
-          )}
 
-          {/* ── RESULTADOS ── */}
-          <div ref={resultsRef} style={{ marginTop: 48 }}>
-            {selected.map(function(key) {
-              if (!conversations[key] && !loading[key]) return null;
-              var parsed = parseKey(key);
-              var area = TEAM[parsed.area];
-              var member = area.members[parsed.member];
-              return (
-                <TwinCard
-                  key={key}
-                  twinKey={key}
-                  area={area}
-                  member={member}
-                  conversation={conversations[key] || []}
-                  loading={loading[key]}
-                  onReply={handleReply}
-                />
-              );
-            })}
-          </div>
+              {/* ── ADJUNTO ── */}
+              {(showAttach || fileName || deliverable.trim().length > 0) && (
+                <div style={{ marginBottom: 36 }}>
+                  <Eyebrow>Material de referencia <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: "0.05em" }}>(opcional)</span></Eyebrow>
+                  <div style={{ marginBottom: 10 }}>
+                    <FileUpload onFileContent={handleFileContent} fileName={fileName} onClear={clearFile} imagePreview={imageData ? imageData.preview : null} />
+                  </div>
+                  {!fileName && (
+                    <textarea
+                      value={deliverable}
+                      onChange={function(e) { setDeliverable(e.target.value); }}
+                      placeholder="O pega aquí el brief, la propuesta, el insight..."
+                      rows={5}
+                      style={{
+                        width: "100%", padding: "16px 18px", background: CARD,
+                        border: "1px solid " + BORDER, borderRadius: 14, color: INK,
+                        fontSize: 14.5, lineHeight: 1.7, resize: "vertical", fontFamily: SANS,
+                      }}
+                    />
+                  )}
+                </div>
+              )}
 
-          {activeConversations.length > 0 && !running && (
-            <div style={{
-              marginTop: 8,
-              padding: "13px 18px",
-              border: "1px solid " + BORDER,
-              borderRadius: 14,
-              background: SURFACE,
-            }}>
-              <p style={{
-                color: TEXT_DIM,
-                fontSize: 11,
-                margin: 0,
-                fontFamily: MONO,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}>Cada twin mantiene su propia conversación. Puedes profundizar, cuestionar o pedir alternativas.</p>
-            </div>
+              {/* ── HISTORIAL DE CONVERSACIONES ── */}
+              <div style={{ marginTop: 44 }}>
+                <Eyebrow>Historial de conversaciones</Eyebrow>
+                {history.length > 3 && (
+                  <input
+                    value={search}
+                    onChange={function(e) { setSearch(e.target.value); }}
+                    placeholder="Buscar conversación..."
+                    style={{
+                      width: "100%", padding: "11px 18px", background: SURFACE,
+                      border: "1px solid " + BORDER, borderRadius: 999, color: INK,
+                      fontSize: 13.5, fontFamily: SANS, marginBottom: 12,
+                    }}
+                  />
+                )}
+                {filteredHistory.length === 0 ? (
+                  <div style={{ padding: "26px 20px", border: "1.5px dashed " + BORDER, borderRadius: 14, textAlign: "center" }}>
+                    <p style={{ margin: 0, fontSize: 13.5, color: TEXT_MUTED, fontFamily: SANS }}>
+                      Aún no hay conversaciones. Elige un twin, escribe tu pregunta y empieza.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {filteredHistory.map(function(c) {
+                      var parsed = parseKey(c.twinKey);
+                      var area = TEAM[parsed.area];
+                      var member = area && area.members[parsed.member];
+                      if (!member) return null;
+                      var isPending = !!pending[c.id];
+                      return (
+                        <div key={c.id} className="fa-histitem" style={{
+                          display: "flex", alignItems: "center", gap: 14,
+                          padding: "13px 16px", background: CARD,
+                          border: "1px solid " + BORDER, borderRadius: 14,
+                        }}>
+                          <button onClick={function() { setView({ type: "chat", id: c.id }); }} style={{
+                            display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0,
+                            background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0,
+                          }}>
+                            <Avatar name={member.name} size={36} dark />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS }}>
+                                {member.name} <span style={{ fontWeight: 400, color: TEXT_MUTED, fontSize: 12 }}>· {area.name} · {fmtTime(c.updatedAt)}</span>
+                              </div>
+                              <div style={{ fontSize: 12.5, color: TEXT_DIM, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                                {c.firstQuestion}
+                              </div>
+                            </div>
+                            {isPending ? <div className="fa-spinner" /> : <span style={{ color: TEXT_MUTED, fontSize: 15 }}>→</span>}
+                          </button>
+                          <button onClick={function() { deleteConv(c.id); }} title="Eliminar conversación" style={{
+                            background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED,
+                            fontSize: 13, padding: "4px 6px", flexShrink: 0,
+                          }}>✕</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </main>
       </div>
