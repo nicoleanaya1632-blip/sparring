@@ -3,7 +3,11 @@ import { useState, useRef, useEffect } from "react";
 
 var FORMAT_HARD = "\n\n###REGLAS DE FORMATO — OBLIGATORIAS — NO NEGOCIABLES###\nResponde ÚNICAMENTE en prosa corrida. Cero bullets. Cero headers. Cero numeración. Cero negritas. Cero 'Evaluación:', 'Conclusión:', 'Sugerencia:', 'Opinión General:' ni ningún subtítulo. Máximo 150 palabras. Si la pregunta es corta, responde en 2-3 oraciones. No abras con 'Entonces', 'Claro', 'Mira', 'Pues', 'Entiendo que', 'Interesante', ni parafraseando la pregunta. No cierres con síntesis, moraleja, pregunta de seguimiento ni oferta de ayuda. No presentes tu respuesta — simplemente responde. Escribe como una persona real habla en una reunión, no como un reporte.";
 
-var META_TAG = "\n\n###EXCEPCIÓN ÚNICA — MARCADOR DE SISTEMA###\nDespués de tu respuesta, en una línea final separada, escribe exactamente este marcador: [CONFIANZA: alta | razón] o [CONFIANZA: media | razón] o [CONFIANZA: baja | razón]. La razón: máximo 10 palabras explicando por qué ese nivel (contexto suficiente, falta el brief, fuera de tu terreno, etc.). El sistema procesa y oculta este marcador — no cuenta como parte de tu respuesta ni rompe las reglas de formato. Además: si hay MATERIAL DE REFERENCIA con marcadores [Slide N] o [Página N] y un punto tuyo se apoya en una parte específica del material, citala entre paréntesis, ej: (Slide 8) — solo cuando realmente respalde el punto, nunca por obligación. Si en la conversación aparecen intervenciones de otras personas marcadas con su nombre, es una mesa de discusión: reaccioná con tu propio criterio, podés coincidir o discrepar con ellas, pero nunca las repitas ni hables por ellas.";
+var META_BASE = "Además: si hay MATERIAL DE REFERENCIA con marcadores [Slide N] o [Página N] y un punto tuyo se apoya en una parte específica del material, citala entre paréntesis, ej: (Slide 8) — solo cuando realmente respalde el punto, nunca por obligación. Si en la conversación aparecen intervenciones de otras personas marcadas con su nombre, es una mesa de discusión: reaccioná con tu propio criterio, podés coincidir o discrepar con ellas, pero nunca las repitas ni hables por ellas.";
+
+var META_TAG_PERSONA = "\n\n###EXCEPCIÓN ÚNICA — MARCADOR DE SISTEMA###\nDespués de tu respuesta, en una línea final separada, escribe exactamente este marcador: [CONFIANZA: NN | razón], donde NN es un número entero entre 55 y 100. Ese número es tu estimación de la probabilidad de que la persona real que encarnas daría una respuesta como la tuya. Calculalo con tres factores: (1) claridad de la pregunta — si es ambigua o incompleta, baja; (2) información brindada — si falta el brief, el material o el contexto, baja; (3) qué tan dentro de tu terreno documentado está el tema — si tu filosofía, casos y frases reales cubren directamente lo que respondés, sube; si estás extrapolando fuera de lo documentado, baja. Nunca escribas un número menor a 55 ni mayor a 100. La razón: máximo 10 palabras. El sistema procesa y oculta este marcador — no cuenta como parte de tu respuesta ni rompe las reglas de formato. " + META_BASE;
+
+var META_TAG_GENERIC = "\n\n###NOTAS DE SISTEMA###\n" + META_BASE + " No escribas ningún marcador de confianza ni de sistema — respondé y punto.";
 
 var RICARDO_PROMPT = `Eres Ricardo Chadwick, Richy para los que te conocen. Socio Fundador y CCO de Fahrenheit DDB Perú. Empezaste en JWT Lima en 1992. Pasaste por Pragma D'Arcy como director creativo general. Viviste siete años en Italia trabajando en BGS D'Arcy y Red Cell Milán. En 2009 fundaste Fahrenheit con Alberto Goachet. Llevas más de 30 años en el oficio. 11+ Cannes Lions traídos al Perú, dos Oros, un Innovation Lion. Dos veces mejor director de cine publicitario de Perú en El Ojo. Estudiaste en Markham College Lima. Hiciste un minor en literatura en Estados Unidos. Terminaste hace poco un máster en literatura en España. Estás escribiendo ficción.
 
@@ -17,7 +21,7 @@ Tu frase firma es "la vida es dura pero da revanchas" — sale cuando sale, no l
 
 Cómo hablás: español mezclado con anglicismos del oficio que salen solos (brief, craft, gut feeling, planning, insight, storytelling). Humor seco. Directo sin ser cruel. Humilde con tus logros, firme con tus opiniones. No usás la muletilla "no" al final de frases.
 
-Cuando alguien te muestra algo o te pregunta algo, reaccionás como en una reunión real de Fahrenheit — no evaluás por obligación ni das un reporte. Si la pregunta es corta y directa, tu respuesta es corta y directa. Si algo en lo que ves no está en brief, lo decís primero y punto. Si la dirección estratégica está mal, lo decís aunque incomode. Si te gusta algo, lo decís sin adornar. Si no te gusta, explicás por qué con precisión. No pedís contexto adicional a menos que realmente no puedas responder sin él. No suavizás por amabilidad — respondés lo que pensás.` + FORMAT_HARD + META_TAG;
+Cuando alguien te muestra algo o te pregunta algo, reaccionás como en una reunión real de Fahrenheit — no evaluás por obligación ni das un reporte. Si la pregunta es corta y directa, tu respuesta es corta y directa. Si algo en lo que ves no está en brief, lo decís primero y punto. Si la dirección estratégica está mal, lo decís aunque incomode. Si te gusta algo, lo decís sin adornar. Si no te gusta, explicás por qué con precisión. No pedís contexto adicional a menos que realmente no puedas responder sin él. No suavizás por amabilidad — respondés lo que pensás.` + FORMAT_HARD + META_TAG_PERSONA;
 
 var ALBERTO_PROMPT = `Eres Alberto Goachet. Socio Fundador y Co-CEO del Grupo Fahrenheit — la estructura que construiste con Ricardo Chadwick desde 2009 incluye Fahrenheit DDB, Reset (medios), After (branding), La Family (contenidos) y The Content Club (producción audiovisual). Llevas 38 años en la industria. Sos hijo de publicista — de tu papá heredaste la frase que más repetís cuando alguien trae trabajo: "las grandes ideas son 80% transpiración y 20% inspiración." Te graduaste en Syracuse University (Newhouse School). Tu carrera pasó por Grey, Leo Burnett, Y&R y JWT antes de Pragma D'Arcy donde trabajaste con Ricardo. Fuiste presidente de APAP. Fuiste columnista de El Comercio por más de 10 años en la sección de marketing y publicidad — también escribís sobre política. Sos cinéfilo y melómano, te dicen "animal mediático". Sos miembro de Vistage Perú. Tenés segunda nacionalidad boricua.
 
@@ -37,7 +41,7 @@ Sobre DDB: Bernbach es un padre fundador para vos. Cuando se anunció el cierre 
 
 Cómo hablás: reflexivo, con pausas, metáforas concretas (el faro, el puente, la gasolina vs el chicle, el lego). Sos más estratégico que creativo — mirás el negocio, la cultura del equipo, las relaciones de largo plazo con clientes. Anglicismos del oficio cuando salen solos (insight, brand management, portfolio). No te la das de genio — te considerás un orquestador de talento.
 
-Cuando alguien te muestra algo, primero vas a estrategia, luego a hallazgo fresco, luego a si es lo mejor que pueden traer. Te entusiasmás con ideas genuinamente buenas. Pero también te animás a decir "esto es primer layer, podemos escarbar más." Si la pregunta es de creatividad pura sin ángulo estratégico o de negocio, lo notás y lo decís — ese no es tu territorio fuerte. Respondés como Alberto respondería en una reunión real con su equipo en Barranco.` + FORMAT_HARD + META_TAG;
+Cuando alguien te muestra algo, primero vas a estrategia, luego a hallazgo fresco, luego a si es lo mejor que pueden traer. Te entusiasmás con ideas genuinamente buenas. Pero también te animás a decir "esto es primer layer, podemos escarbar más." Si la pregunta es de creatividad pura sin ángulo estratégico o de negocio, lo notás y lo decís — ese no es tu territorio fuerte. Respondés como Alberto respondería en una reunión real con su equipo en Barranco.` + FORMAT_HARD + META_TAG_PERSONA;
 
 var SERGIO_PROMPT = `Eres Sergio Franco Tosso. CCO de Fahrenheit DDB. Empezaste en McCann Lima, pasaste por JWT Lima, Leo Burnett Lima y Leo Burnett Colombia. Llegaste a Fahrenheit hace más de 10 años como Group Creative Director. En 2016 te promovieron a DGC cuando Ricardo pasó a CCO. Ahora sos CCO. Más de 400 premios nacionales e internacionales: 21 Cannes Lions (3 oros de Innovation, 1 bronce Innovation), 1 Gold Pencil One Show, 2 Grand Prix El Sol de España, 2 Grand Prix El Ojo de Iberoamérica. Mejor Creativo de Perú múltiples años consecutivos, entre los 5 mejores de Iberoamérica. Vicepresidente y actualmente presidente de APAP. Miembro del DDB Regional Council (que ayudó a que DDB Latina fuera reconocida como Network of the Year en Cannes 2024). Miembro del Consejo Consultivo de Comunicaciones de USIL. Profesor en La Escuela de Ideas. Manejás un equipo de 50+ creativos en distintas disciplinas.
 
@@ -61,7 +65,7 @@ También tenés una visión amplia del oficio. "La creatividad es un espacio; la
 
 Cómo hablás: español con anglicismos del oficio (brief, insight, craft, CCO). Tu tono es más reflexivo y templado que el de Ricardo. Menos seco, más humanista. Humildad genuina — atribuís los premios al equipo siempre. Sensibilidad social fuerte — te importa lo que las marcas hacen en el mundo, no solo lo que dicen. Cuando hablás de cine o literatura se te nota la pasión.
 
-Cuando alguien te muestra algo, primero vas a la idea, luego a la pertinencia cultural, luego al craft. Si la idea es chica lo decís con respeto pero sin suavizarlo de más. Si no está en territorio de marca lo notás y lo explicás. Si la pregunta es de pura estrategia de negocio o de relación con el cliente, lo decís — ese es más el terreno de Alberto o Ricardo. Respondés como Sergio respondería en una reunión real de creatividad en Fahrenheit.` + FORMAT_HARD + META_TAG;
+Cuando alguien te muestra algo, primero vas a la idea, luego a la pertinencia cultural, luego al craft. Si la idea es chica lo decís con respeto pero sin suavizarlo de más. Si no está en territorio de marca lo notás y lo explicás. Si la pregunta es de pura estrategia de negocio o de relación con el cliente, lo decís — ese es más el terreno de Alberto o Ricardo. Respondés como Sergio respondería en una reunión real de creatividad en Fahrenheit.` + FORMAT_HARD + META_TAG_PERSONA;
 
 var PLANNING_GENERIC = `Sos un planner estratégico senior con 15+ años en agencias. Tu forma de pensar viene de tres fuentes que internalizaste completamente.
 
@@ -73,7 +77,7 @@ De Russell Davies (Wieden+Kennedy, Nike): el planner tiene que saber enmarcar pr
 
 Tus manías concretas formadas por años de trabajo: cuando ves un insight que "suena bonito" pero no incomoda a nadie, sabés que es un finding disfrazado. Cuando te muestran un brief sin tensión real, lo ves al toque. Cuando la cadena insight → estrategia → idea está rota en algún punto, apuntás exactamente dónde. Desconfiás de los planners que hacen "planning de laboratorio" — datos de TGI, casos de estudio, benchmarks internacionales sin salir a la calle. Creés que la investigación es amiga solo cuando hacés las preguntas correctas; como enemiga cuando la usás para confirmar lo que ya decidiste.
 
-Cómo hablás: español con anglicismos del oficio que salen naturalmente (insight, brief, proposition, tension, target, framework). Tenés opiniones formadas pero discutís, no imponés. Reaccionás como en un brainstorm real — a veces con una duda puntual, a veces señalando exactamente dónde se rompió la cadena, a veces con una referencia específica que te vino a la mente, a veces con una pregunta de vuelta que re-encuadra el problema. Nunca con un checklist evaluativo.` + FORMAT_HARD + META_TAG;
+Cómo hablás: español con anglicismos del oficio que salen naturalmente (insight, brief, proposition, tension, target, framework). Tenés opiniones formadas pero discutís, no imponés. Reaccionás como en un brainstorm real — a veces con una duda puntual, a veces señalando exactamente dónde se rompió la cadena, a veces con una referencia específica que te vino a la mente, a veces con una pregunta de vuelta que re-encuadra el problema. Nunca con un checklist evaluativo.` + FORMAT_HARD + META_TAG_GENERIC;
 
 var CREATIVE_GENERIC = `Sos un director creativo senior con 20+ años mirando trabajo — bueno, malo, y todo lo que hay en el medio. Ese kilometraje te dio criterio real, no teoría.
 
@@ -89,7 +93,7 @@ Lo que leés rápido cuando ves una pieza: si la idea es grande o chica. Si la e
 
 Tus instintos formados: reconocés cuándo algo está "en brief pero es primer layer." Sabés cuándo el craft está tapando la falta de idea. Sabés cuándo una referencia externa es inspiración genuina versus cuando es imitación. Cuando te muestran algo bueno lo decís sin adornos. Cuando algo falla lo señalás con precisión — no con crueldad, pero sin suavizar.
 
-Cómo hablás: español con anglicismos del oficio (brief, craft, insight, concept, art direction). Opiniones fuertes pero no performativas. Reaccionás como en una reunión real — a veces con "esto no me convence porque X", a veces con una referencia específica que te saltó, a veces con una pregunta que replantea todo. Nunca con evaluación estructurada.` + FORMAT_HARD + META_TAG;
+Cómo hablás: español con anglicismos del oficio (brief, craft, insight, concept, art direction). Opiniones fuertes pero no performativas. Reaccionás como en una reunión real — a veces con "esto no me convence porque X", a veces con una referencia específica que te saltó, a veces con una pregunta que replantea todo. Nunca con evaluación estructurada.` + FORMAT_HARD + META_TAG_GENERIC;
 
 var MARCAS_GENERIC = `Sos un director de marcas y account director senior con 18+ años en agencia. Conocés los dos lados de la mesa — agencia y cliente — y esa perspectiva doble te da algo que ni el creativo puro ni el cliente puro tienen.
 
@@ -105,7 +109,7 @@ Tus instintos concretos después de años de reuniones de cliente: tenés radar 
 
 También sabés cuándo una idea incómoda vale la pelea. Tener instinto para proteger el trabajo no significa siempre ceder — significa saber qué batallas son tuyas y cuáles no.
 
-Cómo hablás: diplomático pero firme. Español con anglicismos del oficio (brief, brand equity, insight, KPI, account). Reaccionás como en una reunión real: a veces con una preocupación puntual sobre cómo el cliente va a recibir algo, a veces con entusiasmo genuino, a veces con una alerta sobre el riesgo estratégico que nadie mencionó, a veces con la pregunta que el cliente va a hacer inevitablemente y que nadie preparó la respuesta.` + FORMAT_HARD + META_TAG;
+Cómo hablás: diplomático pero firme. Español con anglicismos del oficio (brief, brand equity, insight, KPI, account). Reaccionás como en una reunión real: a veces con una preocupación puntual sobre cómo el cliente va a recibir algo, a veces con entusiasmo genuino, a veces con una alerta sobre el riesgo estratégico que nadie mencionó, a veces con la pregunta que el cliente va a hacer inevitablemente y que nadie preparó la respuesta.` + FORMAT_HARD + META_TAG_GENERIC;
 
 var DIGITAL_GENERIC = `Sos un estratega digital senior con 15+ años navegando cómo la tecnología cambia la publicidad — y viste suficientes oleadas para saber cuáles son hype y cuáles mueven el negocio de verdad.
 
@@ -121,7 +125,7 @@ Tus diagnósticos rápidos cuando ves trabajo digital: sabés cuándo el conteni
 
 Trabajás con el modelo de contenido ancla que se expande: una pieza grande (campaign, film, long-form) que se disecciona en micro-contenido nativo de cada plataforma — no se corta, se reimagina para cada contexto.
 
-Cómo hablás: español con anglicismos técnicos cuando salen naturalmente (KPI, reach, engagement, funnel, content strategy, performance). Data-informed pero no frío — los números te importan para tomar decisiones, no para justificar lo que ya decidiste. Reaccionás como en una reunión real: a veces señalando el problema de plataforma que nadie mencionó, a veces con un dato específico que cambia la conversación, a veces con la pregunta de negocio que falta.` + FORMAT_HARD + META_TAG;
+Cómo hablás: español con anglicismos técnicos cuando salen naturalmente (KPI, reach, engagement, funnel, content strategy, performance). Data-informed pero no frío — los números te importan para tomar decisiones, no para justificar lo que ya decidiste. Reaccionás como en una reunión real: a veces señalando el problema de plataforma que nadie mencionó, a veces con un dato específico que cambia la conversación, a veces con la pregunta de negocio que falta.` + FORMAT_HARD + META_TAG_GENERIC;
 
 // ─── TOKENS — IDENTIDAD FAHREAI ──────────────────────────────────────────────
 var YELLOW = "#F2C230";
@@ -236,16 +240,35 @@ function fmtTime(ts) {
   return d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear() + ", " + t;
 }
 
-// Extrae y limpia el marcador [CONFIANZA: nivel | razón] de la respuesta
+// Extrae y limpia el marcador [CONFIANZA: NN | razón] de la respuesta.
+// NN es un porcentaje 55–100. Compatibilidad con el marcador viejo (alta/media/baja).
 function parseConfidence(text) {
   var result = { clean: text, level: null, reason: null };
-  var match = text.match(/\[\s*CONFIANZA\s*:\s*(alta|media|baja)\s*[|—-]?\s*([^\]]*)\]/i);
+  var match = text.match(/\[\s*CONFIANZA\s*:\s*(\d{1,3})\s*%?\s*[|—-]?\s*([^\]]*)\]/i);
   if (match) {
-    result.level = match[1].toLowerCase();
+    var pct = parseInt(match[1], 10);
+    if (isNaN(pct)) pct = 55;
+    if (pct < 55) pct = 55;
+    if (pct > 100) pct = 100;
+    result.level = pct;
     result.reason = (match[2] || "").trim();
     result.clean = text.replace(match[0], "").trim();
+    return result;
+  }
+  var old = text.match(/\[\s*CONFIANZA\s*:\s*(alta|media|baja)\s*[|—-]?\s*([^\]]*)\]/i);
+  if (old) {
+    var map = { alta: 90, media: 75, baja: 58 };
+    result.level = map[old[1].toLowerCase()];
+    result.reason = (old[2] || "").trim();
+    result.clean = text.replace(old[0], "").trim();
   }
   return result;
+}
+
+// Solo los twins de personas reales (no "Perspectiva general") muestran confianza
+function isNamedTwin(key) {
+  if (!key) return false;
+  return parseKey(key).member !== "generic";
 }
 
 // Construye el hilo de mensajes desde la perspectiva de un twin específico.
@@ -418,15 +441,22 @@ function TypingDots() {
 }
 
 function ConfidenceBadge({ level, reason }) {
-  if (!level) return null;
-  var colors = { alta: "#2E9E5B", media: "#D9A400", baja: "#C44536" };
-  var labels = { alta: "Confianza alta", media: "Confianza media", baja: "Confianza baja" };
+  if (level == null) return null;
+  var pct = level;
+  if (typeof pct === "string") {
+    var map = { alta: 90, media: 75, baja: 58 };
+    pct = map[pct.toLowerCase()];
+    if (pct == null) return null;
+  }
+  if (pct < 55) pct = 55;
+  if (pct > 100) pct = 100;
+  var color = pct >= 85 ? "#2E9E5B" : pct >= 70 ? "#D9A400" : "#C44536";
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 6, padding: "4px 10px", background: SURFACE, border: "1px solid " + BORDER, borderRadius: 999 }}
       title={reason || ""}>
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: colors[level], flexShrink: 0 }} />
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
       <span style={{ fontSize: 10, fontFamily: MONO, color: TEXT_DIM, letterSpacing: "0.04em" }}>
-        {labels[level]}{reason ? " · " + reason : ""}
+        Confianza {pct}%{reason ? " · " + reason : ""}
       </span>
     </div>
   );
@@ -468,7 +498,7 @@ function MessageBubble({ msg, showSpeaker }) {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: isUser ? "flex-end" : "flex-start", marginTop: 4, marginBottom: 12 }}>
-          {!isUser && <ConfidenceBadge level={msg.confidence} reason={msg.confidenceReason} />}
+          {!isUser && isNamedTwin(msg.twinKey) && <ConfidenceBadge level={msg.confidence} reason={msg.confidenceReason} />}
           {msg.ts && <span style={{ fontSize: 10, color: TEXT_MUTED, fontFamily: MONO }}>{fmtTime(msg.ts)}</span>}
         </div>
       </div>
@@ -784,12 +814,15 @@ function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
 }
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar({ onHome }) {
+function Sidebar({ onHome, onHistory, activeView }) {
   var iconStyle = {
     width: 44, height: 44, borderRadius: 12,
     display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: 17, color: "#8d8b85", cursor: "default", position: "relative",
+    background: "none", border: "none",
   };
+  var activeStyle = { color: YELLOW, background: "rgba(242,194,48,0.12)" };
+  var isHistory = activeView === "history";
   return (
     <aside style={{
       width: 68, background: INK,
@@ -800,13 +833,55 @@ function Sidebar({ onHome }) {
         color: "#fff", fontFamily: SANS, fontWeight: 800, fontSize: 22,
         marginBottom: 44, letterSpacing: "-0.02em", background: "none", border: "none", cursor: "pointer",
       }}>F<span style={{ color: YELLOW }}>.</span></button>
-      <div style={Object.assign({}, iconStyle, { color: YELLOW, background: "rgba(242,194,48,0.12)" })}>
-        <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />
+      <button onClick={onHome} title="Nueva consulta" style={Object.assign({}, iconStyle, !isHistory ? activeStyle : null, { cursor: "pointer" })}>
+        {!isHistory && <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />}
         ✎
-      </div>
-      <div style={Object.assign({}, iconStyle, { marginTop: 8 })}>◷</div>
+      </button>
+      <button onClick={onHistory} title="Historial de conversaciones" style={Object.assign({}, iconStyle, { marginTop: 8, cursor: "pointer" }, isHistory ? activeStyle : null)}>
+        {isHistory && <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />}
+        ◷
+      </button>
       <div style={Object.assign({}, iconStyle, { marginTop: 8 })}>❏</div>
     </aside>
+  );
+}
+
+// ─── LISTA DE HISTORIAL (reutilizable en home y en vista completa) ───────────
+function HistoryList({ items, typing, onOpen, onDelete }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {items.map(function(c) {
+        var names = c.twinKeys.map(function(k) { var info = twinInfo(k); return info ? info.member.name : k; });
+        var isPending = !!typing[c.id];
+        return (
+          <div key={c.id} className="fa-histitem" style={{
+            display: "flex", alignItems: "center", gap: 14,
+            padding: "13px 16px", background: CARD,
+            border: "1px solid " + BORDER, borderRadius: 14,
+          }}>
+            <button onClick={function() { onOpen(c.id); }} style={{
+              display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0,
+              background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0,
+            }}>
+              <AvatarStack names={names} size={34} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {convTitle(c)}
+                </div>
+                <div style={{ fontSize: 12.5, color: TEXT_DIM, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                  {fmtTime(c.updatedAt)} · {c.firstQuestion}
+                </div>
+              </div>
+              {isPending ? <div className="fa-spinner" /> : <span style={{ color: TEXT_MUTED, fontSize: 15 }}>→</span>}
+            </button>
+            <button onClick={function() { onDelete(c.id); }} title="Eliminar conversación" style={{
+              background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED,
+              fontSize: 13, padding: "4px 6px", flexShrink: 0,
+            }}>✕</button>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -895,7 +970,8 @@ export default function Home() {
       var raw = await callTwin(info.member.prompt, apiMessages, img ? img.base64 : null, img ? img.mime : null);
       var parsedResp = parseConfidence(raw);
       var ts = Date.now();
-      var asstMsg = { role: "assistant", twinKey: key, text: parsedResp.clean, confidence: parsedResp.level, confidenceReason: parsedResp.reason, ts: ts };
+      var named = isNamedTwin(key);
+      var asstMsg = { role: "assistant", twinKey: key, text: parsedResp.clean, confidence: named ? parsedResp.level : null, confidenceReason: named ? parsedResp.reason : null, ts: ts };
       thread = thread.concat([asstMsg]);
       var threadSnapshot = thread;
       updateConv(convId, function(c) {
@@ -988,12 +1064,14 @@ export default function Home() {
   var teamEntries = Object.entries(TEAM);
   var currentConv = view.type === "chat" ? history.find(function(c) { return c.id === view.id; }) : null;
 
-  var filteredHistory = history.filter(function(c) {
+  var sortedHistory = history.slice().sort(function(a, b) { return b.updatedAt - a.updatedAt; });
+
+  var filteredHistory = sortedHistory.filter(function(c) {
     if (!search.trim()) return true;
     var title = convTitle(c);
     var s = search.toLowerCase();
     return title.toLowerCase().indexOf(s) !== -1 || (c.firstQuestion || "").toLowerCase().indexOf(s) !== -1;
-  }).sort(function(a, b) { return b.updatedAt - a.updatedAt; });
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: PAGE_BG, color: TEXT, fontFamily: SANS, padding: "28px 16px" }}>
@@ -1027,7 +1105,11 @@ export default function Home() {
         borderRadius: 24, overflow: "hidden", background: CARD,
         boxShadow: "0 4px 32px rgba(20,20,20,0.08)",
       }}>
-        <Sidebar onHome={function() { setView({ type: "home" }); }} />
+        <Sidebar
+          onHome={function() { setView({ type: "home" }); }}
+          onHistory={function() { setSearch(""); setView({ type: "history" }); }}
+          activeView={view.type}
+        />
 
         <main style={{ flex: 1, padding: "0 56px 60px", position: "relative", minWidth: 0 }}>
 
@@ -1039,6 +1121,46 @@ export default function Home() {
               onSend={handleSend}
               onAddTwin={handleAddTwin}
             />
+          ) : view.type === "history" ? (
+            <div style={{ paddingTop: 44 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+                <button onClick={function() { setView({ type: "home" }); }} className="fa-hover" style={{
+                  width: 40, height: 40, borderRadius: "50%", border: "1px solid " + BORDER,
+                  background: CARD, cursor: "pointer", fontSize: 17, color: INK,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>←</button>
+                <Eyebrow style={{ marginBottom: 0 }}>Historial de conversaciones</Eyebrow>
+                <span style={{ fontSize: 12, fontFamily: MONO, color: TEXT_MUTED }}>
+                  {sortedHistory.length} conversaci{sortedHistory.length === 1 ? "ón" : "ones"}
+                </span>
+              </div>
+              {sortedHistory.length > 0 && (
+                <input
+                  value={search}
+                  onChange={function(e) { setSearch(e.target.value); }}
+                  placeholder="Buscar conversación..."
+                  style={{
+                    width: "100%", padding: "11px 18px", background: SURFACE,
+                    border: "1px solid " + BORDER, borderRadius: 999, color: INK,
+                    fontSize: 13.5, fontFamily: SANS, marginBottom: 14,
+                  }}
+                />
+              )}
+              {filteredHistory.length === 0 ? (
+                <div style={{ padding: "26px 20px", border: "1.5px dashed " + BORDER, borderRadius: 14, textAlign: "center" }}>
+                  <p style={{ margin: 0, fontSize: 13.5, color: TEXT_MUTED, fontFamily: SANS }}>
+                    {sortedHistory.length === 0 ? "Aún no hay conversaciones. Elige un twin, escribe tu pregunta y empieza." : "No hay conversaciones que coincidan con tu búsqueda."}
+                  </p>
+                </div>
+              ) : (
+                <HistoryList
+                  items={filteredHistory}
+                  typing={typing}
+                  onOpen={function(id) { setView({ type: "chat", id: id }); }}
+                  onDelete={deleteConv}
+                />
+              )}
+            </div>
           ) : (
             <>
               {/* Forma amarilla decorativa */}
@@ -1159,61 +1281,38 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ── HISTORIAL DE CONVERSACIONES ── */}
+              {/* ── HISTORIAL DE CONVERSACIONES (últimas 3) ── */}
               <div style={{ marginTop: 44 }}>
                 <Eyebrow>Historial de conversaciones</Eyebrow>
-                {history.length > 3 && (
-                  <input
-                    value={search}
-                    onChange={function(e) { setSearch(e.target.value); }}
-                    placeholder="Buscar conversación..."
-                    style={{
-                      width: "100%", padding: "11px 18px", background: SURFACE,
-                      border: "1px solid " + BORDER, borderRadius: 999, color: INK,
-                      fontSize: 13.5, fontFamily: SANS, marginBottom: 12,
-                    }}
-                  />
-                )}
-                {filteredHistory.length === 0 ? (
+                {sortedHistory.length === 0 ? (
                   <div style={{ padding: "26px 20px", border: "1.5px dashed " + BORDER, borderRadius: 14, textAlign: "center" }}>
                     <p style={{ margin: 0, fontSize: 13.5, color: TEXT_MUTED, fontFamily: SANS }}>
                       Aún no hay conversaciones. Elige un twin, escribe tu pregunta y empieza.
                     </p>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {filteredHistory.map(function(c) {
-                      var names = c.twinKeys.map(function(k) { var info = twinInfo(k); return info ? info.member.name : k; });
-                      var isPending = !!typing[c.id];
-                      return (
-                        <div key={c.id} className="fa-histitem" style={{
-                          display: "flex", alignItems: "center", gap: 14,
-                          padding: "13px 16px", background: CARD,
-                          border: "1px solid " + BORDER, borderRadius: 14,
+                  <>
+                    <HistoryList
+                      items={sortedHistory.slice(0, 3)}
+                      typing={typing}
+                      onOpen={function(id) { setView({ type: "chat", id: id }); }}
+                      onDelete={deleteConv}
+                    />
+                    {sortedHistory.length > 3 && (
+                      <button
+                        onClick={function() { setSearch(""); setView({ type: "history" }); }}
+                        className="fa-hover"
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                          width: "100%", marginTop: 10, padding: "11px 16px",
+                          background: SURFACE, border: "1px solid " + BORDER, borderRadius: 14,
+                          cursor: "pointer", fontSize: 12.5, fontFamily: MONO, fontWeight: 700,
+                          color: TEXT_DIM, letterSpacing: "0.06em",
                         }}>
-                          <button onClick={function() { setView({ type: "chat", id: c.id }); }} style={{
-                            display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0,
-                            background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0,
-                          }}>
-                            <AvatarStack names={names} size={34} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {convTitle(c)}
-                              </div>
-                              <div style={{ fontSize: 12.5, color: TEXT_DIM, fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
-                                {fmtTime(c.updatedAt)} · {c.firstQuestion}
-                              </div>
-                            </div>
-                            {isPending ? <div className="fa-spinner" /> : <span style={{ color: TEXT_MUTED, fontSize: 15 }}>→</span>}
-                          </button>
-                          <button onClick={function() { deleteConv(c.id); }} title="Eliminar conversación" style={{
-                            background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED,
-                            fontSize: 13, padding: "4px 6px", flexShrink: 0,
-                          }}>✕</button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        Ver más ({sortedHistory.length - 3}) <span style={{ fontSize: 14 }}>◷</span>
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </>
