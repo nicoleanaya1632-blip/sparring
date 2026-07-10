@@ -704,7 +704,10 @@ function ChatView({ conv, typingTwinKey, onBack, onSend, onAddTwin }) {
 
 // ─── TARJETA DE ÁREA ─────────────────────────────────────────────────────────
 function AreaCard({ areaId, area, selected, onToggle }) {
-  var memberIds = Object.keys(area.members);
+  // Twins nombrados primero; "Perspectiva general" siempre al final
+  var memberIds = Object.keys(area.members).sort(function(a, b) {
+    return (a === "generic" ? 1 : 0) - (b === "generic" ? 1 : 0);
+  });
   var anySelected = memberIds.some(function(m) { return selected.includes(selectionKey(areaId, m)); });
   return (
     <div className="fa-card" style={{
@@ -724,9 +727,10 @@ function AreaCard({ areaId, area, selected, onToggle }) {
           var member = area.members[memberId];
           var key = selectionKey(areaId, memberId);
           var isOn = selected.includes(key);
+          var isNamed = memberId !== "generic";
           return (
             <button key={memberId} onClick={function() { onToggle(key); }} style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
+              display: "flex", alignItems: "center", gap: 10, padding: isNamed ? "9px 10px" : "7px 10px",
               border: "none", borderRadius: 8,
               background: isOn ? YELLOW_TINT : "transparent",
               cursor: "pointer", textAlign: "left", width: "100%", transition: "background 0.1s",
@@ -738,7 +742,14 @@ function AreaCard({ areaId, area, selected, onToggle }) {
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0, fontSize: 9, color: INK, fontWeight: 900,
               }}>{isOn ? "✓" : ""}</span>
-              <span style={{ color: isOn ? INK : TEXT_DIM, fontWeight: isOn ? 700 : 500, fontSize: 12.5, fontFamily: MONO, letterSpacing: "0.01em" }}>{member.name}</span>
+              {isNamed && <span style={{ color: YELLOW, fontSize: 11, flexShrink: 0, lineHeight: 1 }}>★</span>}
+              <span style={{
+                color: isNamed ? INK : (isOn ? INK : TEXT_MUTED),
+                fontWeight: isNamed ? 800 : 500,
+                fontSize: isNamed ? 13.5 : 12,
+                fontFamily: isNamed ? SANS : MONO,
+                letterSpacing: "0.01em",
+              }}>{member.name}</span>
             </button>
           );
         })}
@@ -1227,12 +1238,18 @@ export default function Home() {
                       padding: "10px 0", maxHeight: 200,
                     }}
                   />
-                  <button onClick={function() { setShowAttach(!showAttach); }} className="fa-hover" title="Adjuntar material" style={{
-                    width: 40, height: 40, borderRadius: "50%", border: "none",
-                    background: (showAttach || fileName) ? YELLOW_TINT : "transparent",
-                    cursor: "pointer", fontSize: 17, color: TEXT_DIM, flexShrink: 0,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>📎</button>
+                  <button onClick={function() { setShowAttach(!showAttach); }} className="fa-chip" title="Adjuntar material (PDF, PPTX, imagen...)" style={{
+                    display: "flex", alignItems: "center", gap: 7,
+                    padding: "0 16px", height: 40, borderRadius: 999,
+                    border: "1px solid " + ((showAttach || fileName) ? YELLOW : BORDER),
+                    background: (showAttach || fileName) ? YELLOW_TINT : SURFACE,
+                    cursor: "pointer", flexShrink: 0, alignSelf: "center",
+                  }}>
+                    <span style={{ fontSize: 15 }}>📎</span>
+                    <span style={{ fontSize: 12.5, fontFamily: MONO, fontWeight: 700, color: INK, letterSpacing: "0.02em" }}>
+                      {fileName ? "1 adjunto" : "Adjuntar"}
+                    </span>
+                  </button>
                   <button onClick={runEvaluation} disabled={!canRun} className={canRun ? "fa-send" : ""} style={{
                     width: 44, height: 44, borderRadius: "50%",
                     background: canRun ? YELLOW : "#eeede8",
