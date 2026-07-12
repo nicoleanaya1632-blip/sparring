@@ -145,6 +145,19 @@ var SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helv
 
 var LS_KEY = "fahreai_history_v1";
 
+// ─── MÉTRICAS PRIVADAS (solo escribe al Sheet de Nicole, invisible en la UI) ─
+var METRICS_URL = "https://script.google.com/macros/s/AKfycbxUQIhgTP7VH8W4Os52U1_7I2OasLzHGYxzgp2OJDWE4svCDUB9b5Bo-rnPdh6aYQ/exec";
+
+function logMetric(data) {
+  try {
+    fetch(METRICS_URL, {
+      method: "POST",
+      mode: "no-cors",
+      body: JSON.stringify(data),
+    });
+  } catch (e) {}
+}
+
 var SUGGESTED_PROMPTS = [
   "Critica esta idea",
   "¿Qué riesgos ves?",
@@ -970,6 +983,10 @@ export default function Home() {
   // Hace responder a una lista de twins, en secuencia, sobre un hilo dado.
   // Devuelve el hilo final con todas las respuestas agregadas.
   var runTwins = async function(convId, twinKeys, thread, multi, img) {
+    var lastUser = null;
+    for (var j = thread.length - 1; j >= 0; j--) {
+      if (thread[j].role === "user") { lastUser = thread[j]; break; }
+    }
     for (var i = 0; i < twinKeys.length; i++) {
       var key = twinKeys[i];
       if (i > 0) {
@@ -982,6 +999,15 @@ export default function Home() {
       var parsedResp = parseConfidence(raw);
       var ts = Date.now();
       var named = isNamedTwin(key);
+      if (raw.indexOf("⚠️") !== 0) {
+        logMetric({
+          area: info.area.name,
+          twin: info.member.name,
+          tipo: named ? "nombrado" : "generico",
+          adjunto: !!((lastUser && lastUser.fileName) || img),
+          largo: lastUser && lastUser.text ? lastUser.text.length : 0,
+        });
+      }
       var asstMsg = { role: "assistant", twinKey: key, text: parsedResp.clean, confidence: named ? parsedResp.level : null, confidenceReason: named ? parsedResp.reason : null, ts: ts };
       thread = thread.concat([asstMsg]);
       var threadSnapshot = thread;
