@@ -164,6 +164,7 @@ var MONO = "'JetBrains Mono', 'Courier New', monospace";
 var SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif";
 
 var LS_KEY = "fahreai_history_v1";
+var LS_LEARN = "fahreai_learnings_v1";
 
 // ─── MÉTRICAS PRIVADAS (solo escribe al Sheet de Nicole, invisible en la UI) ─
 var METRICS_URL = "https://script.google.com/macros/s/AKfycbxUQIhgTP7VH8W4Os52U1_7I2OasLzHGYxzgp2OJDWE4svCDUB9b5Bo-rnPdh6aYQ/exec";
@@ -176,6 +177,19 @@ function logMetric(data) {
       body: JSON.stringify(data),
     });
   } catch (e) {}
+}
+
+// Contador anónimo de aprendizajes — NUNCA envía el texto de la nota.
+function logLearning(area, twin, tipo) {
+  logMetric({
+    area: area,
+    twin: twin,
+    tipo: tipo,
+    aprendizaje_guardado: true,
+    adjunto: false,
+    largo: 0,
+    pregunta: "",
+  });
 }
 
 // ─── PROMPT LIBRARY ──────────────────────────────────────────────────────────
@@ -560,7 +574,7 @@ function ConfidenceBadge({ level, reason }) {
   );
 }
 
-function MessageBubble({ msg, showSpeaker }) {
+function MessageBubble({ msg, showSpeaker, onSaveLearning, isSaved }) {
   var isUser = msg.role === "user";
   var info = !isUser ? twinInfo(msg.twinKey) : null;
   var speakerName = info ? info.member.name : "Twin";
@@ -595,8 +609,27 @@ function MessageBubble({ msg, showSpeaker }) {
             })}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: isUser ? "flex-end" : "flex-start", marginTop: 4, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: isUser ? "flex-end" : "flex-start", marginTop: 4, marginBottom: 12, flexWrap: "wrap" }}>
           {!isUser && isNamedTwin(msg.twinKey) && <ConfidenceBadge level={msg.confidence} reason={msg.confidenceReason} />}
+          {!isUser && onSaveLearning && msg.text && msg.text.indexOf("\u26A0\uFE0F") !== 0 && (
+            <button
+              onClick={function() { if (!isSaved) onSaveLearning(msg); }}
+              title={isSaved ? "Ya guardado en tus aprendizajes" : "Guardar como aprendizaje"}
+              className={isSaved ? "" : "fa-learnbtn"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "4px 10px", borderRadius: 999,
+                background: isSaved ? YELLOW_TINT : "transparent",
+                border: "1px solid " + (isSaved ? YELLOW : BORDER),
+                color: isSaved ? INK : TEXT_MUTED,
+                fontSize: 10, fontFamily: MONO, letterSpacing: "0.04em",
+                cursor: isSaved ? "default" : "pointer",
+              }}
+            >
+              <span style={{ fontSize: 11 }}>{isSaved ? "\u2605" : "\u2606"}</span>
+              {isSaved ? "Guardado" : "Guardar aprendizaje"}
+            </button>
+          )}
           {msg.ts && <span style={{ fontSize: 10, color: TEXT_MUTED, fontFamily: MONO }}>{fmtTime(msg.ts)}</span>}
         </div>
       </div>
@@ -605,7 +638,7 @@ function MessageBubble({ msg, showSpeaker }) {
 }
 
 // ─── VISTA CHAT (pantalla completa, multi-twin) ──────────────────────────────
-function ChatView({ conv, typingTwinKey, onBack, onSend, onAddTwin }) {
+function ChatView({ conv, typingTwinKey, onBack, onSend, onAddTwin, onSaveLearning, savedIds }) {
   var participants = conv.twinKeys.map(twinInfo).filter(Boolean);
   var multi = conv.twinKeys.length > 1;
   var pending = !!typingTwinKey;
@@ -726,7 +759,9 @@ function ChatView({ conv, typingTwinKey, onBack, onSend, onAddTwin }) {
       {/* Mensajes */}
       <div style={{ flex: 1 }}>
         {conv.messages.map(function(msg, i) {
-          return <MessageBubble key={i} msg={msg} showSpeaker={true} />;
+          return <MessageBubble key={i} msg={msg} showSpeaker={true}
+            onSaveLearning={msg.role === "assistant" ? function(m) { onSaveLearning(conv, m); } : null}
+            isSaved={msg.role === "assistant" && savedIds.indexOf(conv.id + ":" + msg.ts) !== -1} />;
         })}
         {pending && typingInfo && (
           <div className="fa-msg" style={{ display: "flex", gap: 10, marginBottom: 12 }}>
@@ -923,7 +958,7 @@ function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
 }
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar({ onHome, onHistory, activeView }) {
+function Sidebar({ onHome, onHistory, onLearnings, onPrompts, activeView, learnCount }) {
   var iconStyle = {
     width: 44, height: 44, borderRadius: 12,
     display: "flex", alignItems: "center", justifyContent: "center",
@@ -932,6 +967,8 @@ function Sidebar({ onHome, onHistory, activeView }) {
   };
   var activeStyle = { color: YELLOW, background: "rgba(242,194,48,0.12)" };
   var isHistory = activeView === "history";
+  var isLearn = activeView === "learnings";
+  var isPrompts = activeView === "prompts";
   return (
     <aside style={{
       width: 68, background: INK,
@@ -950,7 +987,25 @@ function Sidebar({ onHome, onHistory, activeView }) {
         {isHistory && <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />}
         ◷
       </button>
-      <div style={Object.assign({}, iconStyle, { marginTop: 8 })}>❏</div>
+      <button onClick={onLearnings} title="Mis aprendizajes" style={Object.assign({}, iconStyle, { marginTop: 8, cursor: "pointer" }, isLearn ? activeStyle : null)}>
+        {isLearn && <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />}
+        ★
+        {learnCount > 0 && !isLearn && (
+          <span style={{
+            position: "absolute", top: 5, right: 4, minWidth: 15, height: 15,
+            borderRadius: 999, background: YELLOW, color: INK,
+            fontSize: 9, fontFamily: MONO, fontWeight: 700,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px",
+          }}>{learnCount > 99 ? "99+" : learnCount}</span>
+        )}
+      </button>
+      <button onClick={onPrompts} title="Prompt library" style={Object.assign({}, iconStyle, { marginTop: 8, cursor: "pointer" }, isPrompts ? activeStyle : null)}>
+        {isPrompts && <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />}
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      </button>
     </aside>
   );
 }
@@ -994,6 +1049,198 @@ function HistoryList({ items, typing, onOpen, onDelete }) {
   );
 }
 
+// ─── VISTA APRENDIZAJES ──────────────────────────────────────────────────────
+function LearningsView({ items, onBack, onDelete, onOpenConv, onEditNote }) {
+  var searchState = useState(""); var q = searchState[0]; var setQ = searchState[1];
+  var editState = useState(null); var editing = editState[0]; var setEditing = editState[1];
+  var draftState = useState(""); var draft = draftState[0]; var setDraft = draftState[1];
+
+  var filtered = items.filter(function(l) {
+    if (!q.trim()) return true;
+    var s = q.toLowerCase();
+    return (l.text || "").toLowerCase().indexOf(s) !== -1
+      || (l.note || "").toLowerCase().indexOf(s) !== -1
+      || (l.twinName || "").toLowerCase().indexOf(s) !== -1
+      || (l.areaName || "").toLowerCase().indexOf(s) !== -1;
+  });
+
+  var grouped = {};
+  filtered.forEach(function(l) {
+    var k = l.areaName || "Sin área";
+    if (!grouped[k]) grouped[k] = [];
+    grouped[k].push(l);
+  });
+
+  return (
+    <div style={{ paddingTop: 44 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
+        <button onClick={onBack} className="fa-hover" style={{
+          width: 40, height: 40, borderRadius: "50%", border: "1px solid " + BORDER,
+          background: CARD, cursor: "pointer", fontSize: 17, color: INK,
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>←</button>
+        <Eyebrow style={{ marginBottom: 0 }}>Mis aprendizajes</Eyebrow>
+        <span style={{ fontSize: 12, fontFamily: MONO, color: TEXT_MUTED }}>
+          {items.length} nota{items.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      <p style={{ fontSize: 13, color: TEXT_DIM, fontFamily: SANS, margin: "0 0 22px 56px", lineHeight: 1.6, maxWidth: 520 }}>
+        Tu compendio privado de feedback recurrente. Se guarda solo en este navegador — nadie más lo ve.
+      </p>
+
+      {items.length > 0 && (
+        <input
+          value={q}
+          onChange={function(e) { setQ(e.target.value); }}
+          placeholder="Buscar en tus aprendizajes..."
+          style={{
+            width: "100%", padding: "11px 18px", background: SURFACE,
+            border: "1px solid " + BORDER, borderRadius: 999, color: INK,
+            fontSize: 13.5, fontFamily: SANS, marginBottom: 18,
+          }}
+        />
+      )}
+
+      {filtered.length === 0 ? (
+        <div style={{ padding: "34px 22px", border: "1.5px dashed " + BORDER, borderRadius: 14, textAlign: "center" }}>
+          <div style={{ fontSize: 26, marginBottom: 10, color: TEXT_MUTED }}>☆</div>
+          <p style={{ margin: 0, fontSize: 13.5, color: TEXT_MUTED, fontFamily: SANS, lineHeight: 1.6 }}>
+            {items.length === 0
+              ? "Aún no guardaste ningún aprendizaje. Cuando un twin te diga algo que quieras recordar, toca “Guardar aprendizaje” debajo de su respuesta."
+              : "No hay aprendizajes que coincidan con tu búsqueda."}
+          </p>
+        </div>
+      ) : (
+        Object.keys(grouped).map(function(areaName) {
+          return (
+            <div key={areaName} style={{ marginBottom: 28 }}>
+              <div style={{
+                fontSize: 11, fontFamily: MONO, fontWeight: 700, color: TEXT_MUTED,
+                textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12,
+                display: "flex", alignItems: "center", gap: 10,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: YELLOW, flexShrink: 0 }} />
+                {areaName}
+                <span style={{ fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
+                  · {grouped[areaName].length}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {grouped[areaName].map(function(l) {
+                  var isEditing = editing === l.id;
+                  return (
+                    <div key={l.id} className="fa-histitem" style={{
+                      padding: "15px 17px", background: CARD,
+                      border: "1px solid " + BORDER, borderRadius: 14,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9 }}>
+                        <Avatar name={l.twinName} size={26} dark />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 700, color: INK, fontFamily: SANS }}>{l.twinName}</span>
+                          <span style={{ fontSize: 11, color: TEXT_MUTED, fontFamily: MONO, marginLeft: 8 }}>{fmtTime(l.ts)}</span>
+                        </div>
+                        <button onClick={function() { onDelete(l.id); }} title="Eliminar aprendizaje" style={{
+                          background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED,
+                          fontSize: 13, padding: "2px 4px", flexShrink: 0,
+                        }}>✕</button>
+                      </div>
+
+                      <div style={{
+                        fontSize: 14, lineHeight: 1.65, color: TEXT, fontFamily: SANS,
+                        borderLeft: "2px solid " + YELLOW, paddingLeft: 12, whiteSpace: "pre-wrap",
+                      }}>{l.text}</div>
+
+                      {l.context && (
+                        <div style={{ fontSize: 11.5, color: TEXT_MUTED, fontFamily: SANS, marginTop: 9, fontStyle: "italic" }}>
+                          En respuesta a: {l.context}
+                        </div>
+                      )}
+
+                      {isEditing ? (
+                        <div style={{ marginTop: 11 }}>
+                          <textarea
+                            value={draft}
+                            autoFocus
+                            onChange={function(e) { setDraft(e.target.value); }}
+                            placeholder="Tu nota personal sobre este aprendizaje..."
+                            style={{
+                              width: "100%", minHeight: 62, padding: "10px 12px", background: SURFACE,
+                              border: "1px solid " + BORDER, borderRadius: 10, color: INK,
+                              fontSize: 13, fontFamily: SANS, resize: "vertical", lineHeight: 1.5,
+                            }}
+                          />
+                          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <button onClick={function() { onEditNote(l.id, draft); setEditing(null); }} style={{
+                              background: YELLOW, border: "1px solid " + YELLOW, borderRadius: 999,
+                              padding: "6px 15px", fontSize: 12, fontFamily: MONO, color: INK,
+                              cursor: "pointer", fontWeight: 700,
+                            }}>Guardar nota</button>
+                            <button onClick={function() { setEditing(null); }} style={{
+                              background: "none", border: "1px solid " + BORDER, borderRadius: 999,
+                              padding: "6px 15px", fontSize: 12, fontFamily: MONO, color: TEXT_DIM, cursor: "pointer",
+                            }}>Cancelar</button>
+                          </div>
+                        </div>
+                      ) : l.note ? (
+                        <div onClick={function() { setEditing(l.id); setDraft(l.note || ""); }} style={{
+                          marginTop: 11, padding: "9px 12px", background: YELLOW_TINT,
+                          borderRadius: 10, fontSize: 12.5, color: TEXT, fontFamily: SANS,
+                          lineHeight: 1.55, cursor: "pointer", whiteSpace: "pre-wrap",
+                        }}>
+                          <span style={{ fontFamily: MONO, fontSize: 10, color: TEXT_DIM, letterSpacing: "0.06em" }}>MI NOTA · </span>
+                          {l.note}
+                        </div>
+                      ) : null}
+
+                      <div style={{ display: "flex", gap: 14, marginTop: 11 }}>
+                        {!isEditing && !l.note && (
+                          <button onClick={function() { setEditing(l.id); setDraft(""); }} style={{
+                            background: "none", border: "none", padding: 0, cursor: "pointer",
+                            fontSize: 11, fontFamily: MONO, color: TEXT_MUTED, letterSpacing: "0.04em",
+                          }}>+ Agregar nota</button>
+                        )}
+                        {l.convId && (
+                          <button onClick={function() { onOpenConv(l.convId); }} style={{
+                            background: "none", border: "none", padding: 0, cursor: "pointer",
+                            fontSize: 11, fontFamily: MONO, color: TEXT_MUTED, letterSpacing: "0.04em",
+                          }}>Ver conversación →</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })
+      )}
+
+      {items.length > 0 && (
+        <div style={{
+          marginTop: 34, paddingTop: 20, borderTop: "1px solid " + BORDER,
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap",
+        }}>
+          <span style={{ fontSize: 11.5, color: TEXT_MUTED, fontFamily: SANS }}>
+            Tus aprendizajes viven solo en este navegador.
+          </span>
+          <button
+            onClick={function() {
+              alert("Sincronizar entre dispositivos\n\nEsta función aún no está disponible. Por ahora tus aprendizajes se guardan solo en este navegador.\n\nSi te sirve tenerlos en tu celular o en otra compu, avísale a Nicole — mientras más gente lo pida, antes se construye.");
+            }}
+            style={{
+              background: "none", border: "none", padding: 0, cursor: "pointer",
+              fontSize: 11.5, fontFamily: MONO, color: TEXT_DIM,
+              borderBottom: "1px solid " + BORDER, letterSpacing: "0.03em",
+            }}
+          >Sincronizar entre dispositivos →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   var selState = useState(["direccion:ricardo"]); var selected = selState[0]; var setSelected = selState[1];
@@ -1009,6 +1256,7 @@ export default function Home() {
   var searchState = useState(""); var search = searchState[0]; var setSearch = searchState[1];
   var rotState = useState(0); var rotIdx = rotState[0]; var setRotIdx = rotState[1];
   var promptSearchState = useState(""); var promptSearch = promptSearchState[0]; var setPromptSearch = promptSearchState[1];
+  var learnState = useState([]); var learnings = learnState[0]; var setLearnings = learnState[1];
 
   useEffect(function() {
     var t = setInterval(function() {
@@ -1051,6 +1299,10 @@ export default function Home() {
         setHistory(migrated);
       }
     } catch (e) {}
+    try {
+      var rawL = localStorage.getItem(LS_LEARN);
+      if (rawL) setLearnings(JSON.parse(rawL));
+    } catch (e) {}
     loadedRef.current = true;
   }, []);
 
@@ -1059,6 +1311,54 @@ export default function Home() {
     if (!loadedRef.current) return;
     try { localStorage.setItem(LS_KEY, JSON.stringify(history)); } catch (e) {}
   }, [history]);
+
+  // Persistir aprendizajes cuando cambian
+  useEffect(function() {
+    if (!loadedRef.current) return;
+    try { localStorage.setItem(LS_LEARN, JSON.stringify(learnings)); } catch (e) {}
+  }, [learnings]);
+
+  // ─── APRENDIZAJES ───────────────────────────────────────────────────────────
+  var savedIds = learnings.map(function(l) { return l.msgId; });
+
+  var saveLearning = function(conv, msg) {
+    var msgId = conv.id + ":" + msg.ts;
+    if (savedIds.indexOf(msgId) !== -1) return;
+    var info = twinInfo(msg.twinKey);
+    if (!info) return;
+
+    var lastUser = null;
+    for (var i = conv.messages.length - 1; i >= 0; i--) {
+      if (conv.messages[i].role === "user" && conv.messages[i].ts < msg.ts) { lastUser = conv.messages[i]; break; }
+    }
+    var ctx = lastUser && lastUser.text ? lastUser.text.trim() : "";
+    if (ctx.length > 110) ctx = ctx.slice(0, 110) + "…";
+
+    var entry = {
+      id: "learn-" + Date.now(),
+      msgId: msgId,
+      convId: conv.id,
+      twinKey: msg.twinKey,
+      twinName: info.member.name,
+      areaName: info.area.name,
+      text: msg.text,
+      context: ctx,
+      note: "",
+      ts: Date.now(),
+    };
+    setLearnings(function(prev) { return [entry].concat(prev); });
+    logLearning(info.area.name, info.member.name, isNamedTwin(msg.twinKey) ? "nombrado" : "generico");
+  };
+
+  var deleteLearning = function(id) {
+    setLearnings(function(prev) { return prev.filter(function(l) { return l.id !== id; }); });
+  };
+
+  var editLearningNote = function(id, note) {
+    setLearnings(function(prev) {
+      return prev.map(function(l) { return l.id === id ? Object.assign({}, l, { note: note }) : l; });
+    });
+  };
 
   var updateConv = function(id, updater) {
     setHistory(function(prev) {
@@ -1202,6 +1502,10 @@ export default function Home() {
 
   var deleteConv = function(id) {
     setHistory(function(prev) { return prev.filter(function(c) { return c.id !== id; }); });
+    // Los aprendizajes sobreviven a la conversación — solo se rompe el link.
+    setLearnings(function(prev) {
+      return prev.map(function(l) { return l.convId === id ? Object.assign({}, l, { convId: null }) : l; });
+    });
     if (view.type === "chat" && view.id === id) setView({ type: "home" });
   };
 
@@ -1233,6 +1537,8 @@ export default function Home() {
         .fa-send:active { transform: scale(0.96); }
         .fa-chip { transition: background 0.15s, border-color 0.15s, transform 0.1s; }
         .fa-chip:hover { background: ${YELLOW_TINT}; border-color: ${YELLOW}; transform: translateY(-1px); }
+        .fa-learnbtn { transition: background 0.15s, border-color 0.15s, color 0.15s; }
+        .fa-learnbtn:hover { background: ${YELLOW_TINT}; border-color: ${YELLOW}; color: ${INK}; }
         .fa-fade { animation: faFadeIn 0.4s ease; }
         @keyframes faFadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
         .fa-histitem { transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; }
@@ -1254,7 +1560,10 @@ export default function Home() {
         <Sidebar
           onHome={function() { setView({ type: "home" }); }}
           onHistory={function() { setSearch(""); setView({ type: "history" }); }}
+          onLearnings={function() { setView({ type: "learnings" }); }}
+          onPrompts={function() { setPromptSearch(""); setView({ type: "prompts" }); }}
           activeView={view.type}
+          learnCount={learnings.length}
         />
 
         <main style={{ flex: 1, padding: "0 56px 60px", position: "relative", minWidth: 0 }}>
@@ -1266,6 +1575,8 @@ export default function Home() {
               onBack={function() { setView({ type: "home" }); }}
               onSend={handleSend}
               onAddTwin={handleAddTwin}
+              onSaveLearning={saveLearning}
+              savedIds={savedIds}
             />
           ) : view.type === "prompts" ? (
             <div style={{ paddingTop: 44 }}>
@@ -1336,6 +1647,14 @@ export default function Home() {
                 </div>
               )}
             </div>
+          ) : view.type === "learnings" ? (
+            <LearningsView
+              items={learnings}
+              onBack={function() { setView({ type: "home" }); }}
+              onDelete={deleteLearning}
+              onEditNote={editLearningNote}
+              onOpenConv={function(id) { setView({ type: "chat", id: id }); }}
+            />
           ) : view.type === "history" ? (
             <div style={{ paddingTop: 44 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
