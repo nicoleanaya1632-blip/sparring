@@ -1006,6 +1006,7 @@ export default function Home() {
           tipo: named ? "nombrado" : "generico",
           adjunto: !!((lastUser && lastUser.fileName) || img),
           largo: lastUser && lastUser.text ? lastUser.text.length : 0,
+          pregunta: lastUser && lastUser.text ? lastUser.text.slice(0, 500) : "",
         });
       }
       var asstMsg = { role: "assistant", twinKey: key, text: parsedResp.clean, confidence: named ? parsedResp.level : null, confidenceReason: named ? parsedResp.reason : null, ts: ts };
