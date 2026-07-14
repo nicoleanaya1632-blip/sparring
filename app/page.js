@@ -178,13 +178,77 @@ function logMetric(data) {
   } catch (e) {}
 }
 
-var SUGGESTED_PROMPTS = [
-  "Critica esta idea",
-  "¿Qué riesgos ves?",
-  "Hazla más innovadora",
-  "¿Es un insight o un finding?",
-  "¿Está en brief?"
+// ─── PROMPT LIBRARY ──────────────────────────────────────────────────────────
+var PROMPT_LIBRARY = [
+  {
+    cat: "Evaluación general",
+    items: [
+      "Critica esta idea",
+      "¿Sientes que le falta algo a esto?",
+      "¿Qué es lo más débil acá?",
+      "¿Esto lo comprarías si fueras cliente?"
+    ]
+  },
+  {
+    cat: "Brief / alineación",
+    items: [
+      "¿Está en brief?",
+      "¿Esto responde al problema de negocio?",
+      "¿Qué parte se desvía del brief?",
+      "¿Falta algo del brief que no estamos resolviendo?"
+    ]
+  },
+  {
+    cat: "Estrategia / insight",
+    items: [
+      "¿Es un insight o un hallazgo?",
+      "¿Esta estrategia sostiene la idea creativa?"
+    ]
+  },
+  {
+    cat: "Creatividad / innovación",
+    items: [
+      "¿Cuál es el riesgo de que esto pase desapercibido?",
+      "¿Qué la haría más memorable?"
+    ]
+  },
+  {
+    cat: "Marca",
+    items: [
+      "¿Esto construye marca o solo vende?",
+      "¿Es consistente con el territorio de marca?",
+      "¿Diferencia de la competencia o se parece?"
+    ]
+  },
+  {
+    cat: "Digital / ejecución",
+    items: [
+      "¿Esto funciona en redes o solo en el papel?",
+      "¿Cómo se ve el contenido nativo de cada plataforma?",
+      "¿Qué KPI valida si esto funcionó?"
+    ]
+  },
+  {
+    cat: "Riesgos / defensa",
+    items: [
+      "¿Qué riesgos ves?",
+      "¿Cómo defiendo esto frente al cliente?",
+      "¿Qué pregunta incómoda me podrían hacer?"
+    ]
+  },
+  {
+    cat: "Pitch / presentación",
+    items: [
+      "¿Cómo vendo esto mejor en la reunión?",
+      "¿Qué slide sobra?",
+      "¿Cuál es el hook si tengo 30 segundos?"
+    ]
+  }
 ];
+
+var ALL_PROMPTS = PROMPT_LIBRARY.reduce(function(acc, g) {
+  return acc.concat(g.items);
+}, []);
 
 // ─── TEAM ────────────────────────────────────────────────────────────────────
 var TEAM = {
@@ -943,6 +1007,27 @@ export default function Home() {
   var imgState = useState(null); var imageData = imgState[0]; var setImageData = imgState[1];
   var viewState = useState({ type: "home" }); var view = viewState[0]; var setView = viewState[1];
   var searchState = useState(""); var search = searchState[0]; var setSearch = searchState[1];
+  var rotState = useState(0); var rotIdx = rotState[0]; var setRotIdx = rotState[1];
+  var promptSearchState = useState(""); var promptSearch = promptSearchState[0]; var setPromptSearch = promptSearchState[1];
+
+  useEffect(function() {
+    var t = setInterval(function() {
+      setRotIdx(function(i) { return (i + 4) % ALL_PROMPTS.length; });
+    }, 6000);
+    return function() { clearInterval(t); };
+  }, []);
+
+  function rotatingPrompts() {
+    var out = [];
+    for (var i = 0; i < 4; i++) {
+      out.push(ALL_PROMPTS[(rotIdx + i) % ALL_PROMPTS.length]);
+    }
+    return out;
+  }
+
+  function addPrompt(p) {
+    setQuestion(function(prev) { return prev.trim() ? prev + " " + p : p; });
+  }
   var loadedRef = useRef(false);
   var askInputRef = useRef(null);
 
@@ -1148,6 +1233,8 @@ export default function Home() {
         .fa-send:active { transform: scale(0.96); }
         .fa-chip { transition: background 0.15s, border-color 0.15s, transform 0.1s; }
         .fa-chip:hover { background: ${YELLOW_TINT}; border-color: ${YELLOW}; transform: translateY(-1px); }
+        .fa-fade { animation: faFadeIn 0.4s ease; }
+        @keyframes faFadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
         .fa-histitem { transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; }
         .fa-histitem:hover { border-color: ${INK}; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,20,20,0.06); }
         textarea:focus, input:focus { outline: none !important; }
@@ -1180,6 +1267,75 @@ export default function Home() {
               onSend={handleSend}
               onAddTwin={handleAddTwin}
             />
+          ) : view.type === "prompts" ? (
+            <div style={{ paddingTop: 44 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+                <button onClick={function() { setView({ type: "home" }); }} className="fa-hover" style={{
+                  width: 40, height: 40, borderRadius: "50%", border: "1px solid " + BORDER,
+                  background: CARD, cursor: "pointer", fontSize: 17, color: INK,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>←</button>
+                <Eyebrow style={{ marginBottom: 0 }}>Prompt library</Eyebrow>
+                <span style={{ fontSize: 12, fontFamily: MONO, color: TEXT_MUTED }}>
+                  {ALL_PROMPTS.length} prompts
+                </span>
+              </div>
+
+              <input
+                value={promptSearch}
+                onChange={function(e) { setPromptSearch(e.target.value); }}
+                placeholder="Buscar prompt..."
+                style={{
+                  width: "100%", padding: "11px 18px", background: SURFACE,
+                  border: "1px solid " + BORDER, borderRadius: 999, color: INK,
+                  fontSize: 13.5, fontFamily: SANS, marginBottom: 24,
+                }}
+              />
+
+              {PROMPT_LIBRARY.map(function(group) {
+                var q = promptSearch.trim().toLowerCase();
+                var items = q
+                  ? group.items.filter(function(p) { return p.toLowerCase().indexOf(q) !== -1; })
+                  : group.items;
+                if (items.length === 0) return null;
+                return (
+                  <div key={group.cat} style={{ marginBottom: 28 }}>
+                    <div style={{
+                      fontSize: 11, fontFamily: MONO, fontWeight: 700, color: TEXT_MUTED,
+                      textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12,
+                      display: "flex", alignItems: "center", gap: 10,
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: YELLOW, flexShrink: 0 }} />
+                      {group.cat}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {items.map(function(p) {
+                        return (
+                          <button key={p} className="fa-chip" onClick={function() {
+                            addPrompt(p);
+                            setView({ type: "home" });
+                          }} style={{
+                            background: CARD, border: "1px solid " + BORDER, borderRadius: 999,
+                            padding: "9px 17px", fontSize: 13, fontFamily: SANS, color: TEXT,
+                            cursor: "pointer", textAlign: "left",
+                          }}>{p}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {promptSearch.trim() && ALL_PROMPTS.filter(function(p) {
+                return p.toLowerCase().indexOf(promptSearch.trim().toLowerCase()) !== -1;
+              }).length === 0 && (
+                <div style={{ padding: "26px 20px", border: "1.5px dashed " + BORDER, borderRadius: 14, textAlign: "center" }}>
+                  <p style={{ margin: 0, fontSize: 13.5, color: TEXT_MUTED, fontFamily: SANS }}>
+                    No hay prompts que coincidan con tu búsqueda.
+                  </p>
+                </div>
+              )}
+            </div>
           ) : view.type === "history" ? (
             <div style={{ paddingTop: 44 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
@@ -1310,17 +1466,22 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* ── PROMPTS SUGERIDOS ── */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 26 }}>
-                {SUGGESTED_PROMPTS.map(function(p) {
+              {/* ── PROMPTS SUGERIDOS (rotativos) ── */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 26, alignItems: "center" }}>
+                {rotatingPrompts().map(function(p, i) {
                   return (
-                    <button key={p} className="fa-chip" onClick={function() { setQuestion(function(prev) { return prev.trim() ? prev + " " + p : p; }); }} style={{
+                    <button key={p + i} className="fa-chip fa-fade" onClick={function() { addPrompt(p); }} style={{
                       background: SURFACE, border: "1px solid " + BORDER, borderRadius: 999,
                       padding: "8px 16px", fontSize: 12.5, fontFamily: SANS, color: TEXT_DIM,
                       cursor: "pointer",
                     }}>{p}</button>
                   );
                 })}
+                <button className="fa-chip" onClick={function() { setPromptSearch(""); setView({ type: "prompts" }); }} style={{
+                  background: YELLOW_TINT, border: "1px solid " + YELLOW, borderRadius: 999,
+                  padding: "8px 16px", fontSize: 12.5, fontFamily: MONO, fontWeight: 700, color: INK,
+                  cursor: "pointer", letterSpacing: "0.02em",
+                }}>Ver más →</button>
               </div>
 
               {/* ── ADJUNTO ── */}
