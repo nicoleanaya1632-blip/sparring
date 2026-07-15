@@ -165,6 +165,7 @@ var SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helv
 
 var LS_KEY = "fahreai_history_v1";
 var LS_LEARN = "fahreai_learnings_v1";
+var LS_TERRITORIES = "fahreai_territories_v1";
 
 // ─── MÉTRICAS PRIVADAS (solo escribe al Sheet de Nicole, invisible en la UI) ─
 var METRICS_URL = "https://script.google.com/macros/s/AKfycbxUQIhgTP7VH8W4Os52U1_7I2OasLzHGYxzgp2OJDWE4svCDUB9b5Bo-rnPdh6aYQ/exec";
@@ -190,6 +191,67 @@ function logLearning(area, twin, tipo) {
     largo: 0,
     pregunta: "",
   });
+}
+
+// ─── CONSISTENCY CHECKER — PROMPTS ───────────────────────────────────────────
+// Nota: estos prompts SÍ piden estructura, a diferencia de FORMAT_HARD.
+// El checker produce un artefacto, no una conversación.
+
+var DIMS_PROMPT = `Eres un estratega de marca senior. Tu tarea es descomponer un territorio de marca en sus dimensiones constitutivas.
+
+Una dimensión es un eje específico y evaluable del territorio — algo que una pieza puede encarnar, tocar de refilón, ignorar o contradecir. No es un atributo genérico. "Calidad" no es una dimensión; "el cuidado artesanal visible en el producto" sí lo es.
+
+Reglas:
+- Devuelve entre 3 y 5 dimensiones. Nunca más de 5.
+- Cada dimensión: máximo 4 palabras.
+- Cada descripción: una oración corta que explique qué significa que una pieza esté en esa dimensión.
+- Si el territorio que te dan es genérico (una lista de atributos que podría firmar cualquier marca de cualquier categoría), NO inventes dimensiones. Devuelve el array vacío y explica por qué en el campo "problema".
+- Las dimensiones deben salir del territorio dado, no de tu conocimiento previo de la marca.
+
+###FORMATO DE SALIDA — OBLIGATORIO###
+Responde ÚNICAMENTE con un objeto JSON válido. Cero texto antes. Cero texto después. Cero backticks. Cero markdown.
+
+{"marca":"nombre de la marca si lo identificas, si no string vacio","dimensiones":[{"nombre":"...","desc":"..."}],"problema":""}
+
+Si el territorio es insuficiente:
+{"marca":"","dimensiones":[],"problema":"explicación de por qué no es un territorio evaluable, máximo 40 palabras"}`;
+
+var EVAL_PROMPT = `Eres un estratega de marca senior evaluando si una pieza pertenece a un territorio de marca.
+
+Vas a recibir un territorio, una lista de dimensiones, y una pieza. Para cada dimensión, decides un nivel:
+
+- "fuerte": la pieza encarna esta dimensión de forma clara y central.
+- "parcial": la pieza la roza, la sugiere, o la toca sin comprometerse.
+- "ausente": la pieza simplemente no la aborda.
+- "contradice": la pieza dice o muestra algo que va en contra de esta dimensión.
+
+Reglas de criterio:
+- Evalúa lo que la pieza HACE, no lo que dice que hace. Una pieza que menciona la palabra "amistad" no está encarnando amistad.
+- El vocabulario compartido no es consistencia. Una pieza puede repetir las palabras del territorio y estar fuera de él.
+- Una pieza puede encarnar una dimensión sin nombrarla nunca. Eso suele ser mejor trabajo.
+- Sé específico en la evidencia: cita o describe la parte concreta de la pieza que sustenta tu nivel.
+- No suavices. Si algo está ausente, di ausente — no "parcial" por cortesía.
+
+###FORMATO DE SALIDA — OBLIGATORIO###
+Responde ÚNICAMENTE con un objeto JSON válido. Cero texto antes. Cero texto después. Cero backticks. Cero markdown.
+
+{"lectura":"una sola oración que describe el patrón que ves, sin dictar veredicto ni puntuar, máximo 30 palabras","evaluaciones":[{"nombre":"nombre exacto de la dimensión","nivel":"fuerte|parcial|ausente|contradice","evidencia":"qué parte específica de la pieza sustenta esto, máximo 35 palabras"}],"correccion":"una dirección concreta que acercaría la pieza al territorio, no un rewrite, máximo 45 palabras","enTerritorio":"qué SÍ funciona de la pieza dentro del territorio, máximo 30 palabras, string vacío si no hay nada"}`;
+
+var LEVELS = {
+  fuerte:     { label: "fuerte",     color: "#2E9E5B", fill: 1.0,  order: 0 },
+  parcial:    { label: "parcial",    color: "#D9A400", fill: 0.5,  order: 1 },
+  ausente:    { label: "ausente",    color: "#C9C7C0", fill: 0.0,  order: 2 },
+  contradice: { label: "contradice", color: "#C44536", fill: 0.28, order: 3 },
+};
+
+function parseJsonLoose(raw) {
+  if (!raw) return null;
+  var t = String(raw).trim();
+  t = t.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  var a = t.indexOf("{");
+  var b = t.lastIndexOf("}");
+  if (a === -1 || b === -1 || b < a) return null;
+  try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { return null; }
 }
 
 // ─── PROMPT LIBRARY ──────────────────────────────────────────────────────────
@@ -958,7 +1020,7 @@ function FileUpload({ onFileContent, fileName, onClear, imagePreview }) {
 }
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar({ onHome, onHistory, onLearnings, onPrompts, activeView, learnCount }) {
+function Sidebar({ onHome, onHistory, onLearnings, onPrompts, onChecker, activeView, learnCount }) {
   var iconStyle = {
     width: 44, height: 44, borderRadius: 12,
     display: "flex", alignItems: "center", justifyContent: "center",
@@ -969,6 +1031,7 @@ function Sidebar({ onHome, onHistory, onLearnings, onPrompts, activeView, learnC
   var isHistory = activeView === "history";
   var isLearn = activeView === "learnings";
   var isPrompts = activeView === "prompts";
+  var isChecker = activeView === "checker";
   return (
     <aside style={{
       width: 68, background: INK,
@@ -986,6 +1049,14 @@ function Sidebar({ onHome, onHistory, onLearnings, onPrompts, activeView, learnC
       <button onClick={onHistory} title="Historial de conversaciones" style={Object.assign({}, iconStyle, { marginTop: 8, cursor: "pointer" }, isHistory ? activeStyle : null)}>
         {isHistory && <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />}
         ◷
+      </button>
+      <button onClick={onChecker} title="Consistency checker" style={Object.assign({}, iconStyle, { marginTop: 8, cursor: "pointer" }, isChecker ? activeStyle : null)}>
+        {isChecker && <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <line x1="4" y1="7" x2="14" y2="7" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="17" x2="9" y2="17" />
+        </svg>
       </button>
       <button onClick={onLearnings} title="Mis aprendizajes" style={Object.assign({}, iconStyle, { marginTop: 8, cursor: "pointer" }, isLearn ? activeStyle : null)}>
         {isLearn && <div style={{ position: "absolute", left: -12, top: 8, bottom: 8, width: 3, background: YELLOW, borderRadius: 2 }} />}
@@ -1049,19 +1120,449 @@ function HistoryList({ items, typing, onOpen, onDelete }) {
   );
 }
 
+// ─── CONSISTENCY CHECKER ─────────────────────────────────────────────────────
+function LevelBar({ nivel }) {
+  var cfg = LEVELS[nivel] || LEVELS.ausente;
+  var segs = 16;
+  var filled = Math.round(segs * cfg.fill);
+  var blocks = [];
+  for (var i = 0; i < segs; i++) blocks.push(i < filled);
+  return (
+    <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+      {blocks.map(function(on, i) {
+        return <span key={i} style={{
+          width: 7, height: 13, borderRadius: 1.5,
+          background: on ? cfg.color : "rgba(20,20,20,0.07)",
+        }} />;
+      })}
+    </div>
+  );
+}
+
+function CheckerView({ onBack, territories, onSaveTerritory, onSaveLearning, savedIds, onDiscuss }) {
+  var stepState = useState("input"); var step = stepState[0]; var setStep = stepState[1];
+  var terrState = useState(""); var territory = terrState[0]; var setTerritory = terrState[1];
+  var pieceState = useState(""); var piece = pieceState[0]; var setPiece = pieceState[1];
+  var brandState = useState(""); var brand = brandState[0]; var setBrand = brandState[1];
+  var dimsState = useState([]); var dims = dimsState[0]; var setDims = dimsState[1];
+  var resState = useState(null); var result = resState[0]; var setResult = resState[1];
+  var loadState = useState(false); var loading = loadState[0]; var setLoading = loadState[1];
+  var errState = useState(null); var error = errState[0]; var setError = errState[1];
+  var busyState = useState(null); var busy = busyState[0]; var setBusy = busyState[1];
+  var tFileRef = useRef(null);
+  var pFileRef = useRef(null);
+
+  var brandKeys = Object.keys(territories || {});
+
+  var readFile = async function(f, setter, which) {
+    if (!f) return;
+    setBusy(which);
+    try {
+      var r = await extractTextFromFile(f);
+      if (r && r.__isImage) { setError("El checker trabaja con texto. Adjunta un PDF, DOCX o TXT."); }
+      else if (r && r.length > 0) { setter(r); setError(null); }
+    } catch (e) { setError("No pude leer ese archivo."); }
+    setBusy(null);
+  };
+
+  var loadSaved = function(name) {
+    var t = territories[name];
+    if (!t) return;
+    setBrand(name);
+    setTerritory(t.territory || "");
+    setDims(t.dims || []);
+    setStep("dims");
+    setError(null);
+  };
+
+  var proposeDims = async function() {
+    if (!territory.trim()) return;
+    setLoading(true); setError(null);
+    var msgs = [{ role: "user", content: "TERRITORIO DE MARCA:\n\n" + territory.trim() }];
+    var raw = await callTwin(DIMS_PROMPT, msgs, null, null);
+    setLoading(false);
+    if (raw.indexOf("⚠️") === 0) { setError(raw.replace("⚠️ ", "")); return; }
+    var parsed = parseJsonLoose(raw);
+    if (!parsed) { setError("El modelo devolvió algo que no pude leer. Intenta de nuevo."); return; }
+    if (parsed.problema && (!parsed.dimensiones || parsed.dimensiones.length === 0)) {
+      setError(parsed.problema);
+      return;
+    }
+    if (!parsed.dimensiones || parsed.dimensiones.length === 0) {
+      setError("No pude descomponer ese territorio en dimensiones evaluables.");
+      return;
+    }
+    if (parsed.marca && !brand) setBrand(parsed.marca);
+    setDims(parsed.dimensiones.slice(0, 5).map(function(d, i) {
+      return { id: "d" + i + "-" + Date.now(), nombre: d.nombre || "", desc: d.desc || "" };
+    }));
+    setStep("dims");
+  };
+
+  var evaluate = async function() {
+    var clean = dims.filter(function(d) { return d.nombre.trim(); });
+    if (clean.length === 0 || !piece.trim()) return;
+    setLoading(true); setError(null);
+    var dimText = clean.map(function(d, i) {
+      return (i + 1) + ". " + d.nombre + (d.desc ? " — " + d.desc : "");
+    }).join("\n");
+    var msgs = [{ role: "user", content:
+      "TERRITORIO DE MARCA:\n" + territory.trim() +
+      "\n\nDIMENSIONES A EVALUAR:\n" + dimText +
+      "\n\nLA PIEZA:\n" + piece.trim()
+    }];
+    var raw = await callTwin(EVAL_PROMPT, msgs, null, null);
+    setLoading(false);
+    if (raw.indexOf("⚠️") === 0) { setError(raw.replace("⚠️ ", "")); return; }
+    var parsed = parseJsonLoose(raw);
+    if (!parsed || !parsed.evaluaciones) { setError("El modelo devolvió algo que no pude leer. Intenta de nuevo."); return; }
+    var evs = parsed.evaluaciones.map(function(e) {
+      var lvl = String(e.nivel || "").toLowerCase().trim();
+      if (!LEVELS[lvl]) lvl = "ausente";
+      return { nombre: e.nombre || "", nivel: lvl, evidencia: e.evidencia || "" };
+    });
+    var res = {
+      id: "chk-" + Date.now(),
+      brand: brand.trim() || "Sin marca",
+      lectura: parsed.lectura || "",
+      evaluaciones: evs,
+      correccion: parsed.correccion || "",
+      enTerritorio: parsed.enTerritorio || "",
+      territory: territory.trim(),
+      pieceSnippet: piece.trim().slice(0, 140),
+      ts: Date.now(),
+    };
+    setResult(res);
+    setStep("result");
+    if (brand.trim()) onSaveTerritory(brand.trim(), territory.trim(), dims.filter(function(d) { return d.nombre.trim(); }));
+    logMetric({
+      area: "Consistency", twin: "Consistency Checker", tipo: "checker",
+      adjunto: false, largo: piece.trim().length, pregunta: "",
+    });
+  };
+
+  var reset = function() {
+    setStep("input"); setTerritory(""); setPiece(""); setBrand("");
+    setDims([]); setResult(null); setError(null);
+  };
+
+  var boxStyle = {
+    width: "100%", padding: "13px 15px", background: SURFACE,
+    border: "1px solid " + BORDER, borderRadius: 12, color: INK,
+    fontSize: 13.5, fontFamily: SANS, resize: "vertical", lineHeight: 1.6,
+  };
+  var labelStyle = {
+    fontSize: 11, fontFamily: MONO, fontWeight: 700, color: TEXT_MUTED,
+    textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 9,
+    display: "flex", alignItems: "center", gap: 9,
+  };
+  var dot = <span style={{ width: 6, height: 6, borderRadius: "50%", background: YELLOW, flexShrink: 0 }} />;
+
+  var attachBtn = function(refObj, which) {
+    return (
+      <button onClick={function() { if (refObj.current) refObj.current.click(); }} className="fa-hover" style={{
+        background: CARD, border: "1px solid " + BORDER, borderRadius: 999,
+        padding: "5px 13px", fontSize: 11, fontFamily: MONO, color: TEXT_DIM,
+        cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+      }}>
+        {busy === which ? <span className="fa-spinner" /> : <span>▤</span>}
+        {busy === which ? "Leyendo..." : "Adjuntar"}
+      </button>
+    );
+  };
+
+  return (
+    <div style={{ paddingTop: 44 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
+        <button onClick={step === "input" ? onBack : reset} className="fa-hover" style={{
+          width: 40, height: 40, borderRadius: "50%", border: "1px solid " + BORDER,
+          background: CARD, cursor: "pointer", fontSize: 17, color: INK,
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>←</button>
+        <Eyebrow style={{ marginBottom: 0 }}>Consistency checker</Eyebrow>
+        <span style={{ fontSize: 12, fontFamily: MONO, color: TEXT_MUTED }}>
+          {step === "input" ? "paso 1 de 3" : step === "dims" ? "paso 2 de 3" : "resultado"}
+        </span>
+      </div>
+
+      <p style={{ fontSize: 13, color: TEXT_DIM, fontFamily: SANS, margin: "0 0 26px 56px", lineHeight: 1.6, maxWidth: 540 }}>
+        Evalúa si una pieza pertenece al territorio de su marca. No hay veredicto — hay dimensiones. La lectura la haces tú.
+      </p>
+
+      {error && (
+        <div style={{
+          padding: "13px 16px", background: "#FDF0EE", border: "1px solid #E8C4BE",
+          borderRadius: 12, marginBottom: 20, fontSize: 13, color: "#8A3A2E",
+          fontFamily: SANS, lineHeight: 1.55,
+        }}>{error}</div>
+      )}
+
+      {step === "input" && (
+        <div>
+          {brandKeys.length > 0 && (
+            <div style={{ marginBottom: 26 }}>
+              <div style={labelStyle}>{dot} Territorios guardados</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {brandKeys.map(function(k) {
+                  return (
+                    <button key={k} className="fa-chip" onClick={function() { loadSaved(k); }} style={{
+                      background: CARD, border: "1px solid " + BORDER, borderRadius: 999,
+                      padding: "8px 15px", fontSize: 12.5, fontFamily: SANS, color: TEXT, cursor: "pointer",
+                    }}>{k} <span style={{ color: TEXT_MUTED, fontFamily: MONO, fontSize: 10 }}>· {(territories[k].dims || []).length} dim</span></button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginBottom: 24 }}>
+            <div style={labelStyle}>{dot} Marca <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: TEXT_MUTED }}>· opcional, para guardar el territorio</span></div>
+            <input value={brand} onChange={function(e) { setBrand(e.target.value); }}
+              placeholder="Ej: Pilsen Callao"
+              style={Object.assign({}, boxStyle, { borderRadius: 999, padding: "11px 18px" })} />
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <div style={labelStyle}>
+              {dot} Territorio de marca
+              <span style={{ marginLeft: "auto" }}>{attachBtn(tFileRef, "t")}</span>
+            </div>
+            <input type="file" ref={tFileRef} style={{ display: "none" }}
+              accept=".pdf,.docx,.txt,.md"
+              onChange={function(e) { readFile(e.target.files[0], setTerritory, "t"); e.target.value = ""; }} />
+            <textarea value={territory} onChange={function(e) { setTerritory(e.target.value); }}
+              placeholder="Pega el brand book, el brief de marca, o descríbelo en tus palabras. Ej: Pilsen Callao es la amistad verdadera. Los amigos de siempre, los que están cuando importa. Celebra el reencuentro, no la fiesta."
+              style={Object.assign({}, boxStyle, { minHeight: 130 })} />
+          </div>
+
+          <div style={{ marginBottom: 26 }}>
+            <div style={labelStyle}>
+              {dot} La pieza
+              <span style={{ marginLeft: "auto" }}>{attachBtn(pFileRef, "p")}</span>
+            </div>
+            <input type="file" ref={pFileRef} style={{ display: "none" }}
+              accept=".pdf,.docx,.txt,.md"
+              onChange={function(e) { readFile(e.target.files[0], setPiece, "p"); e.target.value = ""; }} />
+            <textarea value={piece} onChange={function(e) { setPiece(e.target.value); }}
+              placeholder="Guión, copy, idea, concepto."
+              style={Object.assign({}, boxStyle, { minHeight: 130 })} />
+          </div>
+
+          <button onClick={proposeDims} disabled={!territory.trim() || loading} style={{
+            background: territory.trim() && !loading ? YELLOW : "#EDEBE4",
+            border: "none", borderRadius: 999, padding: "13px 28px",
+            fontSize: 13.5, fontFamily: SANS, fontWeight: 700,
+            color: territory.trim() && !loading ? INK : TEXT_MUTED,
+            cursor: territory.trim() && !loading ? "pointer" : "default",
+            display: "inline-flex", alignItems: "center", gap: 10,
+          }}>
+            {loading && <span className="fa-spinner" />}
+            {loading ? "Descomponiendo territorio..." : "Descomponer territorio →"}
+          </button>
+        </div>
+      )}
+
+      {step === "dims" && (
+        <div>
+          <div style={{
+            padding: "13px 16px", background: YELLOW_TINT, border: "1px solid " + YELLOW,
+            borderRadius: 12, marginBottom: 22, fontSize: 12.5, color: TEXT,
+            fontFamily: SANS, lineHeight: 1.55,
+          }}>
+            Estas son las dimensiones que salieron del territorio. Edítalas, bórralas o agrega las que falten — la evaluación se hace contra esto, así que vale la pena que estén bien.
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+            {dims.map(function(d, idx) {
+              return (
+                <div key={d.id} style={{
+                  padding: "14px 16px", background: CARD,
+                  border: "1px solid " + BORDER, borderRadius: 14,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <span style={{ fontSize: 10, fontFamily: MONO, color: TEXT_MUTED, flexShrink: 0 }}>0{idx + 1}</span>
+                    <input value={d.nombre}
+                      onChange={function(e) {
+                        var v = e.target.value;
+                        setDims(function(prev) { return prev.map(function(x) { return x.id === d.id ? Object.assign({}, x, { nombre: v }) : x; }); });
+                      }}
+                      placeholder="Nombre de la dimensión"
+                      style={{
+                        flex: 1, background: "none", border: "none", padding: 0,
+                        fontSize: 14, fontWeight: 700, color: INK, fontFamily: SANS,
+                      }} />
+                    <button onClick={function() {
+                      setDims(function(prev) { return prev.filter(function(x) { return x.id !== d.id; }); });
+                    }} style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED, fontSize: 13, padding: "2px 4px" }}>✕</button>
+                  </div>
+                  <textarea value={d.desc}
+                    onChange={function(e) {
+                      var v = e.target.value;
+                      setDims(function(prev) { return prev.map(function(x) { return x.id === d.id ? Object.assign({}, x, { desc: v }) : x; }); });
+                    }}
+                    placeholder="Qué significa que una pieza esté en esta dimensión"
+                    style={{
+                      width: "100%", background: SURFACE, border: "1px solid " + BORDER,
+                      borderRadius: 9, padding: "8px 11px", fontSize: 12.5, color: TEXT_DIM,
+                      fontFamily: SANS, resize: "vertical", minHeight: 42, lineHeight: 1.5,
+                    }} />
+                </div>
+              );
+            })}
+          </div>
+
+          {dims.length < 5 && (
+            <button onClick={function() {
+              setDims(function(prev) { return prev.concat([{ id: "d-" + Date.now(), nombre: "", desc: "" }]); });
+            }} style={{
+              background: "none", border: "1px dashed " + BORDER, borderRadius: 12,
+              padding: "10px 18px", fontSize: 12, fontFamily: MONO, color: TEXT_MUTED,
+              cursor: "pointer", marginBottom: 24, width: "100%",
+            }}>+ Agregar dimensión</button>
+          )}
+
+          {!piece.trim() && (
+            <div style={{ marginBottom: 22 }}>
+              <div style={labelStyle}>
+                {dot} La pieza
+                <span style={{ marginLeft: "auto" }}>{attachBtn(pFileRef, "p")}</span>
+              </div>
+              <input type="file" ref={pFileRef} style={{ display: "none" }}
+                accept=".pdf,.docx,.txt,.md"
+                onChange={function(e) { readFile(e.target.files[0], setPiece, "p"); e.target.value = ""; }} />
+              <textarea value={piece} onChange={function(e) { setPiece(e.target.value); }}
+                placeholder="Guión, copy, idea, concepto."
+                style={Object.assign({}, boxStyle, { minHeight: 120 })} />
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={evaluate} disabled={loading || !piece.trim() || dims.filter(function(d) { return d.nombre.trim(); }).length === 0} style={{
+              background: (!loading && piece.trim() && dims.filter(function(d) { return d.nombre.trim(); }).length > 0) ? YELLOW : "#EDEBE4",
+              border: "none", borderRadius: 999, padding: "13px 28px",
+              fontSize: 13.5, fontFamily: SANS, fontWeight: 700,
+              color: (!loading && piece.trim()) ? INK : TEXT_MUTED,
+              cursor: (!loading && piece.trim()) ? "pointer" : "default",
+              display: "inline-flex", alignItems: "center", gap: 10,
+            }}>
+              {loading && <span className="fa-spinner" />}
+              {loading ? "Evaluando..." : "Evaluar consistencia →"}
+            </button>
+            <button onClick={function() { setStep("input"); setError(null); }} style={{
+              background: "none", border: "1px solid " + BORDER, borderRadius: 999,
+              padding: "13px 22px", fontSize: 12.5, fontFamily: SANS, color: TEXT_DIM, cursor: "pointer",
+            }}>Volver al territorio</button>
+          </div>
+        </div>
+      )}
+
+      {step === "result" && result && (
+        <div className="fa-fade">
+          <div style={{
+            padding: "18px 20px", background: SURFACE,
+            border: "1px solid " + BORDER, borderRadius: 14, marginBottom: 24,
+          }}>
+            <div style={{ fontSize: 10, fontFamily: MONO, color: TEXT_MUTED, letterSpacing: "0.08em", marginBottom: 7 }}>
+              LECTURA · {result.brand}
+            </div>
+            <div style={{ fontSize: 15.5, color: INK, fontFamily: SANS, lineHeight: 1.6, fontWeight: 500 }}>
+              {result.lectura}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 28 }}>
+            {result.evaluaciones.map(function(e, i) {
+              var cfg = LEVELS[e.nivel] || LEVELS.ausente;
+              return (
+                <div key={i} style={{
+                  padding: "15px 0",
+                  borderBottom: i < result.evaluaciones.length - 1 ? "1px solid " + BORDER : "none",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 7, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: INK, fontFamily: SANS, minWidth: 150, flex: "0 0 auto" }}>
+                      {e.nombre}
+                    </div>
+                    <LevelBar nivel={e.nivel} />
+                    <span style={{
+                      fontSize: 10, fontFamily: MONO, color: cfg.color,
+                      letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700,
+                    }}>{cfg.label}</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: TEXT_DIM, fontFamily: SANS, lineHeight: 1.6, paddingLeft: 2 }}>
+                    {e.evidencia}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {result.enTerritorio && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={labelStyle}>{dot} Qué sí está en territorio</div>
+              <div style={{ fontSize: 13.5, color: TEXT, fontFamily: SANS, lineHeight: 1.65, paddingLeft: 15, borderLeft: "2px solid #2E9E5B" }}>
+                {result.enTerritorio}
+              </div>
+            </div>
+          )}
+
+          {result.correccion && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={labelStyle}>{dot} Qué lo acercaría</div>
+              <div style={{ fontSize: 13.5, color: TEXT, fontFamily: SANS, lineHeight: 1.65, paddingLeft: 15, borderLeft: "2px solid " + YELLOW }}>
+                {result.correccion}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", paddingTop: 18, borderTop: "1px solid " + BORDER }}>
+            <button
+              onClick={function() { if (savedIds.indexOf(result.id) === -1) onSaveLearning(result); }}
+              className={savedIds.indexOf(result.id) !== -1 ? "" : "fa-learnbtn"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                padding: "9px 17px", borderRadius: 999,
+                background: savedIds.indexOf(result.id) !== -1 ? YELLOW_TINT : "transparent",
+                border: "1px solid " + (savedIds.indexOf(result.id) !== -1 ? YELLOW : BORDER),
+                color: savedIds.indexOf(result.id) !== -1 ? INK : TEXT_DIM,
+                fontSize: 12, fontFamily: MONO, cursor: savedIds.indexOf(result.id) !== -1 ? "default" : "pointer",
+              }}>
+              <span>{savedIds.indexOf(result.id) !== -1 ? "★" : "☆"}</span>
+              {savedIds.indexOf(result.id) !== -1 ? "Guardado" : "Guardar aprendizaje"}
+            </button>
+            <button onClick={function() { onDiscuss(result); }} style={{
+              background: "none", border: "1px solid " + BORDER, borderRadius: 999,
+              padding: "9px 17px", fontSize: 12, fontFamily: MONO, color: TEXT_DIM, cursor: "pointer",
+            }}>Discutir esto con un twin →</button>
+            <button onClick={reset} style={{
+              background: "none", border: "none", padding: "9px 6px",
+              fontSize: 12, fontFamily: MONO, color: TEXT_MUTED, cursor: "pointer",
+            }}>Evaluar otra pieza</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── VISTA APRENDIZAJES ──────────────────────────────────────────────────────
 function LearningsView({ items, onBack, onDelete, onOpenConv, onEditNote }) {
   var searchState = useState(""); var q = searchState[0]; var setQ = searchState[1];
   var editState = useState(null); var editing = editState[0]; var setEditing = editState[1];
   var draftState = useState(""); var draft = draftState[0]; var setDraft = draftState[1];
+  var tabState = useState("all"); var tab = tabState[0]; var setTab = tabState[1];
 
-  var filtered = items.filter(function(l) {
+  var twinItems = items.filter(function(l) { return l.kind !== "checker"; });
+  var checkItems = items.filter(function(l) { return l.kind === "checker"; });
+  var scoped = tab === "twins" ? twinItems : tab === "checker" ? checkItems : items;
+
+  var filtered = scoped.filter(function(l) {
     if (!q.trim()) return true;
     var s = q.toLowerCase();
     return (l.text || "").toLowerCase().indexOf(s) !== -1
       || (l.note || "").toLowerCase().indexOf(s) !== -1
       || (l.twinName || "").toLowerCase().indexOf(s) !== -1
-      || (l.areaName || "").toLowerCase().indexOf(s) !== -1;
+      || (l.areaName || "").toLowerCase().indexOf(s) !== -1
+      || (l.context || "").toLowerCase().indexOf(s) !== -1;
   });
 
   var grouped = {};
@@ -1090,6 +1591,30 @@ function LearningsView({ items, onBack, onDelete, onOpenConv, onEditNote }) {
       </p>
 
       {items.length > 0 && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 16, borderBottom: "1px solid " + BORDER }}>
+          {[
+            { id: "all", label: "Todos", n: items.length },
+            { id: "twins", label: "De los twins", n: twinItems.length },
+            { id: "checker", label: "Consistency", n: checkItems.length },
+          ].map(function(t) {
+            var on = tab === t.id;
+            return (
+              <button key={t.id} onClick={function() { setTab(t.id); setEditing(null); }} style={{
+                background: "none", border: "none", cursor: "pointer",
+                padding: "9px 14px", position: "relative",
+                fontSize: 12.5, fontFamily: SANS, fontWeight: on ? 700 : 400,
+                color: on ? INK : TEXT_MUTED,
+              }}>
+                {t.label}
+                <span style={{ fontFamily: MONO, fontSize: 10, color: TEXT_MUTED, marginLeft: 6 }}>{t.n}</span>
+                {on && <div style={{ position: "absolute", left: 8, right: 8, bottom: -1, height: 2, background: YELLOW, borderRadius: 2 }} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {items.length > 0 && (
         <input
           value={q}
           onChange={function(e) { setQ(e.target.value); }}
@@ -1107,8 +1632,12 @@ function LearningsView({ items, onBack, onDelete, onOpenConv, onEditNote }) {
           <div style={{ fontSize: 26, marginBottom: 10, color: TEXT_MUTED }}>☆</div>
           <p style={{ margin: 0, fontSize: 13.5, color: TEXT_MUTED, fontFamily: SANS, lineHeight: 1.6 }}>
             {items.length === 0
-              ? "Aún no guardaste ningún aprendizaje. Cuando un twin te diga algo que quieras recordar, toca “Guardar aprendizaje” debajo de su respuesta."
-              : "No hay aprendizajes que coincidan con tu búsqueda."}
+              ? "Aún no guardaste ningún aprendizaje. Cuando un twin te diga algo que quieras recordar, o cuando corras un consistency check, toca “Guardar aprendizaje”."
+              : scoped.length === 0
+                ? (tab === "checker"
+                    ? "Aún no guardaste ningún consistency check."
+                    : "Aún no guardaste ningún aprendizaje de los twins.")
+                : "No hay aprendizajes que coincidan con tu búsqueda."}
           </p>
         </div>
       ) : (
@@ -1136,7 +1665,15 @@ function LearningsView({ items, onBack, onDelete, onOpenConv, onEditNote }) {
                       border: "1px solid " + BORDER, borderRadius: 14,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9 }}>
-                        <Avatar name={l.twinName} size={26} dark />
+                        {l.kind === "checker" ? (
+                          <div style={{
+                            width: 26, height: 26, borderRadius: 8, background: YELLOW_TINT,
+                            border: "1px solid " + YELLOW, display: "flex", alignItems: "center",
+                            justifyContent: "center", flexShrink: 0, fontSize: 12, color: INK,
+                          }}>◫</div>
+                        ) : (
+                          <Avatar name={l.twinName} size={26} dark />
+                        )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ fontSize: 12.5, fontWeight: 700, color: INK, fontFamily: SANS }}>{l.twinName}</span>
                           <span style={{ fontSize: 11, color: TEXT_MUTED, fontFamily: MONO, marginLeft: 8 }}>{fmtTime(l.ts)}</span>
@@ -1152,9 +1689,27 @@ function LearningsView({ items, onBack, onDelete, onOpenConv, onEditNote }) {
                         borderLeft: "2px solid " + YELLOW, paddingLeft: 12, whiteSpace: "pre-wrap",
                       }}>{l.text}</div>
 
+                      {l.kind === "checker" && l.evaluaciones && l.evaluaciones.length > 0 && (
+                        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>
+                          {l.evaluaciones.map(function(e, i) {
+                            var cfg = LEVELS[e.nivel] || LEVELS.ausente;
+                            return (
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 12, color: TEXT_DIM, fontFamily: SANS, minWidth: 128, flex: "0 0 auto" }}>{e.nombre}</span>
+                                <LevelBar nivel={e.nivel} />
+                                <span style={{
+                                  fontSize: 9.5, fontFamily: MONO, color: cfg.color,
+                                  letterSpacing: "0.07em", textTransform: "uppercase", fontWeight: 700,
+                                }}>{cfg.label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
                       {l.context && (
                         <div style={{ fontSize: 11.5, color: TEXT_MUTED, fontFamily: SANS, marginTop: 9, fontStyle: "italic" }}>
-                          En respuesta a: {l.context}
+                          {l.kind === "checker" ? "Pieza evaluada: " : "En respuesta a: "}{l.context}
                         </div>
                       )}
 
@@ -1201,7 +1756,7 @@ function LearningsView({ items, onBack, onDelete, onOpenConv, onEditNote }) {
                             fontSize: 11, fontFamily: MONO, color: TEXT_MUTED, letterSpacing: "0.04em",
                           }}>+ Agregar nota</button>
                         )}
-                        {l.convId && (
+                        {l.convId && l.kind !== "checker" && (
                           <button onClick={function() { onOpenConv(l.convId); }} style={{
                             background: "none", border: "none", padding: 0, cursor: "pointer",
                             fontSize: 11, fontFamily: MONO, color: TEXT_MUTED, letterSpacing: "0.04em",
@@ -1257,6 +1812,7 @@ export default function Home() {
   var rotState = useState(0); var rotIdx = rotState[0]; var setRotIdx = rotState[1];
   var promptSearchState = useState(""); var promptSearch = promptSearchState[0]; var setPromptSearch = promptSearchState[1];
   var learnState = useState([]); var learnings = learnState[0]; var setLearnings = learnState[1];
+  var terrState = useState({}); var territories = terrState[0]; var setTerritories = terrState[1];
 
   useEffect(function() {
     var t = setInterval(function() {
@@ -1303,6 +1859,10 @@ export default function Home() {
       var rawL = localStorage.getItem(LS_LEARN);
       if (rawL) setLearnings(JSON.parse(rawL));
     } catch (e) {}
+    try {
+      var rawT = localStorage.getItem(LS_TERRITORIES);
+      if (rawT) setTerritories(JSON.parse(rawT));
+    } catch (e) {}
     loadedRef.current = true;
   }, []);
 
@@ -1317,6 +1877,20 @@ export default function Home() {
     if (!loadedRef.current) return;
     try { localStorage.setItem(LS_LEARN, JSON.stringify(learnings)); } catch (e) {}
   }, [learnings]);
+
+  // Persistir territorios cuando cambian
+  useEffect(function() {
+    if (!loadedRef.current) return;
+    try { localStorage.setItem(LS_TERRITORIES, JSON.stringify(territories)); } catch (e) {}
+  }, [territories]);
+
+  var saveTerritory = function(name, territory, dims) {
+    setTerritories(function(prev) {
+      var next = Object.assign({}, prev);
+      next[name] = { territory: territory, dims: dims, updatedAt: Date.now() };
+      return next;
+    });
+  };
 
   // ─── APRENDIZAJES ───────────────────────────────────────────────────────────
   var savedIds = learnings.map(function(l) { return l.msgId; });
@@ -1358,6 +1932,55 @@ export default function Home() {
     setLearnings(function(prev) {
       return prev.map(function(l) { return l.id === id ? Object.assign({}, l, { note: note }) : l; });
     });
+  };
+
+  var saveCheckerLearning = function(res) {
+    if (savedIds.indexOf(res.id) !== -1) return;
+    var ctx = res.pieceSnippet || "";
+    if (ctx.length >= 140) ctx = ctx + "…";
+    var entry = {
+      id: "learn-" + Date.now(),
+      msgId: res.id,
+      kind: "checker",
+      convId: null,
+      twinKey: null,
+      twinName: res.brand,
+      areaName: "Consistency",
+      text: res.lectura,
+      evaluaciones: res.evaluaciones,
+      correccion: res.correccion,
+      context: ctx,
+      note: "",
+      ts: Date.now(),
+    };
+    setLearnings(function(prev) { return [entry].concat(prev); });
+    logLearning("Consistency", res.brand, "checker");
+  };
+
+  // Abre un chat con el resultado del checker como contexto inicial.
+  var discussCheck = function(res) {
+    var lines = res.evaluaciones.map(function(e) {
+      return "- " + e.nombre + ": " + e.nivel + (e.evidencia ? " — " + e.evidencia : "");
+    }).join("\n");
+    var body =
+      "Corrí un consistency check sobre una pieza de " + res.brand + " y quiero tu lectura.\n\n" +
+      "TERRITORIO:\n" + res.territory +
+      "\n\nDIMENSIONES EVALUADAS:\n" + lines +
+      (res.lectura ? "\n\nLECTURA DEL CHECKER: " + res.lectura : "") +
+      "\n\n¿Coincides con esta lectura o ves otra cosa?";
+    var now = Date.now();
+    var key = "creative:sergio";
+    var conv = {
+      id: "conv-" + now,
+      twinKeys: [key],
+      firstQuestion: "Consistency check · " + res.brand,
+      startedAt: now,
+      updatedAt: now,
+      messages: [{ role: "user", text: "Consistency check · " + res.brand + "\n\n" + res.lectura, apiContent: body, fileName: null, ts: now }],
+    };
+    setHistory(function(prev) { return [conv].concat(prev); });
+    setView({ type: "chat", id: conv.id });
+    runTwins(conv.id, [key], conv.messages, false, null);
   };
 
   var updateConv = function(id, updater) {
@@ -1562,6 +2185,7 @@ export default function Home() {
           onHistory={function() { setSearch(""); setView({ type: "history" }); }}
           onLearnings={function() { setView({ type: "learnings" }); }}
           onPrompts={function() { setPromptSearch(""); setView({ type: "prompts" }); }}
+          onChecker={function() { setView({ type: "checker" }); }}
           activeView={view.type}
           learnCount={learnings.length}
         />
@@ -1647,6 +2271,15 @@ export default function Home() {
                 </div>
               )}
             </div>
+          ) : view.type === "checker" ? (
+            <CheckerView
+              onBack={function() { setView({ type: "home" }); }}
+              territories={territories}
+              onSaveTerritory={saveTerritory}
+              onSaveLearning={saveCheckerLearning}
+              savedIds={savedIds}
+              onDiscuss={discussCheck}
+            />
           ) : view.type === "learnings" ? (
             <LearningsView
               items={learnings}
