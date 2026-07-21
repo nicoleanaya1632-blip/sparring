@@ -76,7 +76,7 @@ export async function POST(request) {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
         body: JSON.stringify({
-          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          model: "openai/gpt-oss-120b",
           messages: [{ role: "system", content: "Eres un asistente que resume textos de forma densa y precisa en español." }].concat(sumMessages),
           max_tokens: 1000,
           temperature: 0.3,
@@ -131,7 +131,7 @@ async function callGroq(apiKey, systemPrompt, messages, maxTokens) {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
       body: JSON.stringify({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        model: "openai/gpt-oss-120b",
         messages: groqMessages,
         max_tokens: maxTokens,
         temperature: 0.7,
