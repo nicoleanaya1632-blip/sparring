@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 export async function POST(request) {
   var body = await request.json();
   var systemPrompt = body.systemPrompt;
@@ -59,7 +61,7 @@ export async function POST(request) {
 
   // If material is short enough after split, send directly
   var afterSplitEstimate = systemTokens + Math.ceil(questionPart.length / 4) + Math.ceil(materialPart.length / 4) + 900;
-  if (afterSplitEstimate < 11000 || materialPart.length < 14000) {
+  if (afterSplitEstimate < 11000 || materialPart.length < 28000) {
     return await callGroq(apiKey, systemPrompt, messages, 900);
   }
 
@@ -76,25 +78,24 @@ export async function POST(request) {
 
 // ─── AUTO-RETRY: if rate limited, wait and retry up to 3 times ───────────────
 async function fetchWithRetry(url, options, maxRetries) {
-  if (!maxRetries) maxRetries = 3;
-  for (var attempt = 0; attempt < maxRetries; attempt++) {
+  if (!maxRetries) maxRetries = 1; // un solo reintento: fallar rápido, nunca colgar minutos
+  for (var attempt = 0; attempt <= maxRetries; attempt++) {
     var res = await fetch(url, options);
-    if (res.status === 429) {
+    if (res.status === 429 && attempt < maxRetries) {
       var retryAfter = res.headers.get("retry-after");
-      var waitMs = retryAfter ? (parseFloat(retryAfter) * 1000 + 3000) : 65000;
+      var waitMs = retryAfter ? Math.min(parseFloat(retryAfter) * 1000 + 1000, 25000) : 15000;
       await new Promise(function(r) { setTimeout(r, waitMs); });
       continue;
     }
-    return res;
+    return res; // devuelve la respuesta (incl. 429) para que el error se muestre de inmediato
   }
-  return await fetch(url, options);
 }
 
 // ─── CIERRE ANTI-RESUMEN: fuerza punto de vista cuando hay material adjunto ───
 var POV_CLOSER = "\n\n---\nINSTRUCCIÓN FINAL, la más importante y por encima de todo lo anterior: NO resumas ni describas el material de arriba — la persona ya sabe lo que hizo, describírselo no le sirve de nada. Reacciona con tu punto de vista real desde tu área: qué es lo más fuerte y por qué, qué NO te cierra o qué te preocupa, qué le falta, y al menos una idea concreta o una objeción puntual que aportes tú. Habla como en una reunión real de Fahrenheit — con opinión, no con un resumen. Si algo está flojo, dilo.";
 
 async function summarizeText(apiKey, materialPart) {
-  var chunkSize = 6000;
+  var chunkSize = 15000;
   var chunks = [];
   for (var c = 0; c < materialPart.length; c += chunkSize) {
     chunks.push(materialPart.substring(c, c + chunkSize));
@@ -163,6 +164,10 @@ async function callGroq(apiKey, systemPrompt, messages, maxTokens) {
         temperature: 0.7,
       }),
     });
+
+    if (res.status === 429) {
+      return Response.json({ error: "Estás al límite de Groq por ahora (tokens por minuto o del día). Espera un minuto y reintenta, o revisa tu consumo diario en el dashboard." }, { status: 429 });
+    }
 
     var data = await res.json();
 
