@@ -8,17 +8,27 @@ export async function POST(request) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
+  // Modo "solo resumir": el frontend resume el material UNA vez y lo reparte a todos los twins de la mesa
+  if (body.summarizeMaterial) {
+    try {
+      var summ = await summarizeText(apiKey, String(body.summarizeMaterial));
+      return Response.json({ summary: summ });
+    } catch (e) {
+      return Response.json({ error: "No se pudo resumir el material" }, { status: 500 });
+    }
+  }
+
   // Estimate tokens roughly (1 token ≈ 4 chars)
   var systemTokens = Math.ceil(systemPrompt.length / 4);
   var messageTokens = 0;
   for (var i = 0; i < messages.length; i++) {
     messageTokens += Math.ceil((messages[i].content || "").length / 4);
   }
-  var totalEstimate = systemTokens + messageTokens + 4096;
+  var totalEstimate = systemTokens + messageTokens + 900;
 
   // If fits within limit, send directly
-  if (totalEstimate < 10000) {
-    return await callGroq(apiKey, systemPrompt, messages, 4096);
+  if (totalEstimate < 11000) {
+    return await callGroq(apiKey, systemPrompt, messages, 900);
   }
 
   // Otherwise: chunk and summarize the largest user message
@@ -48,12 +58,42 @@ export async function POST(request) {
   }
 
   // If material is short enough after split, send directly
-  var afterSplitEstimate = systemTokens + Math.ceil(questionPart.length / 4) + Math.ceil(materialPart.length / 4) + 4096;
-  if (afterSplitEstimate < 10000 || materialPart.length < 8000) {
-    return await callGroq(apiKey, systemPrompt, messages, 4096);
+  var afterSplitEstimate = systemTokens + Math.ceil(questionPart.length / 4) + Math.ceil(materialPart.length / 4) + 900;
+  if (afterSplitEstimate < 11000 || materialPart.length < 14000) {
+    return await callGroq(apiKey, systemPrompt, messages, 900);
   }
 
-  // Chunk the material and summarize
+  // Resumir el material (una sola pasada). Si es una mesa, el frontend ya lo resumió antes y no llega acá.
+  var compressedMaterial = await summarizeText(apiKey, materialPart);
+  await new Promise(function(r) { setTimeout(r, 12000); });
+  var newContent = questionPart + "\n\n---\nRESUMEN DEL MATERIAL:\n" + compressedMaterial;
+
+  var newMessages = messages.slice();
+  newMessages[largestIdx] = { role: messages[largestIdx].role, content: newContent };
+
+  return await callGroq(apiKey, systemPrompt, newMessages, 900);
+}
+
+// ─── AUTO-RETRY: if rate limited, wait and retry up to 3 times ───────────────
+async function fetchWithRetry(url, options, maxRetries) {
+  if (!maxRetries) maxRetries = 3;
+  for (var attempt = 0; attempt < maxRetries; attempt++) {
+    var res = await fetch(url, options);
+    if (res.status === 429) {
+      var retryAfter = res.headers.get("retry-after");
+      var waitMs = retryAfter ? (parseFloat(retryAfter) * 1000 + 3000) : 65000;
+      await new Promise(function(r) { setTimeout(r, waitMs); });
+      continue;
+    }
+    return res;
+  }
+  return await fetch(url, options);
+}
+
+// ─── CIERRE ANTI-RESUMEN: fuerza punto de vista cuando hay material adjunto ───
+var POV_CLOSER = "\n\n---\nINSTRUCCIÓN FINAL, la más importante y por encima de todo lo anterior: NO resumas ni describas el material de arriba — la persona ya sabe lo que hizo, describírselo no le sirve de nada. Reacciona con tu punto de vista real desde tu área: qué es lo más fuerte y por qué, qué NO te cierra o qué te preocupa, qué le falta, y al menos una idea concreta o una objeción puntual que aportes tú. Habla como en una reunión real de Fahrenheit — con opinión, no con un resumen. Si algo está flojo, dilo.";
+
+async function summarizeText(apiKey, materialPart) {
   var chunkSize = 6000;
   var chunks = [];
   for (var c = 0; c < materialPart.length; c += chunkSize) {
@@ -93,35 +133,8 @@ export async function POST(request) {
     }
   }
 
-  await new Promise(function(r) { setTimeout(r, 12000); });
-
-  var compressedMaterial = summaries.join("\n\n");
-  var newContent = questionPart + "\n\n---\nRESUMEN DEL MATERIAL:\n" + compressedMaterial;
-
-  var newMessages = messages.slice();
-  newMessages[largestIdx] = { role: messages[largestIdx].role, content: newContent };
-
-  return await callGroq(apiKey, systemPrompt, newMessages, 4096);
+  return summaries.join("\n\n");
 }
-
-// ─── AUTO-RETRY: if rate limited, wait and retry up to 3 times ───────────────
-async function fetchWithRetry(url, options, maxRetries) {
-  if (!maxRetries) maxRetries = 3;
-  for (var attempt = 0; attempt < maxRetries; attempt++) {
-    var res = await fetch(url, options);
-    if (res.status === 429) {
-      var retryAfter = res.headers.get("retry-after");
-      var waitMs = retryAfter ? (parseFloat(retryAfter) * 1000 + 3000) : 65000;
-      await new Promise(function(r) { setTimeout(r, waitMs); });
-      continue;
-    }
-    return res;
-  }
-  return await fetch(url, options);
-}
-
-// ─── CIERRE ANTI-RESUMEN: fuerza punto de vista cuando hay material adjunto ───
-var POV_CLOSER = "\n\n---\nINSTRUCCIÓN FINAL, la más importante y por encima de todo lo anterior: NO resumas ni describas el material de arriba — la persona ya sabe lo que hizo, describírselo no le sirve de nada. Reacciona con tu punto de vista real desde tu área: qué es lo más fuerte y por qué, qué NO te cierra o qué te preocupa, qué le falta, y al menos una idea concreta o una objeción puntual que aportes tú. Habla como en una reunión real de Fahrenheit — con opinión, no con un resumen. Si algo está flojo, dilo.";
 
 async function callGroq(apiKey, systemPrompt, messages, maxTokens) {
   var groqMessages = [{ role: "system", content: systemPrompt }];
