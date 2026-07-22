@@ -120,10 +120,23 @@ async function fetchWithRetry(url, options, maxRetries) {
   return await fetch(url, options);
 }
 
+// ─── CIERRE ANTI-RESUMEN: fuerza punto de vista cuando hay material adjunto ───
+var POV_CLOSER = "\n\n---\nINSTRUCCIÓN FINAL, la más importante y por encima de todo lo anterior: NO resumas ni describas el material de arriba — la persona ya sabe lo que hizo, describírselo no le sirve de nada. Reacciona con tu punto de vista real desde tu área: qué es lo más fuerte y por qué, qué NO te cierra o qué te preocupa, qué le falta, y al menos una idea concreta o una objeción puntual que aportes tú. Habla como en una reunión real de Fahrenheit — con opinión, no con un resumen. Si algo está flojo, dilo.";
+
 async function callGroq(apiKey, systemPrompt, messages, maxTokens) {
   var groqMessages = [{ role: "system", content: systemPrompt }];
   for (var i = 0; i < messages.length; i++) {
     groqMessages.push({ role: messages[i].role, content: messages[i].content });
+  }
+
+  // Si el último mensaje de usuario trae material (es largo), forzar punto de vista al final
+  for (var k = groqMessages.length - 1; k >= 0; k--) {
+    if (groqMessages[k].role === "user") {
+      if ((groqMessages[k].content || "").length > 1200) {
+        groqMessages[k] = { role: "user", content: groqMessages[k].content + POV_CLOSER };
+      }
+      break;
+    }
   }
 
   try {
