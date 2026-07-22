@@ -1467,6 +1467,29 @@ export default function Home() {
     for (var j = thread.length - 1; j >= 0; j--) {
       if (thread[j].role === "user") { lastUser = thread[j]; break; }
     }
+
+    // Mesa con material grande: resumir UNA sola vez y reusar el resumen para todos los twins
+    if (twinKeys.length > 1 && lastUser && lastUser.apiContent) {
+      var mIdx = lastUser.apiContent.indexOf("---\nMATERIAL DE REFERENCIA");
+      if (mIdx !== -1 && lastUser.apiContent.substring(mIdx).length > 14000) {
+        setTyping(function(prev) { var next = Object.assign({}, prev); next[convId] = twinKeys[0]; return next; });
+        var qPart = lastUser.apiContent.substring(0, mIdx).trim();
+        var mPart = lastUser.apiContent.substring(mIdx);
+        try {
+          var sres = await fetch("/api/sparring", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ summarizeMaterial: mPart }),
+          });
+          var sdata = await sres.json();
+          if (sdata && sdata.summary) {
+            var summarizedContent = qPart + "\n\n---\nRESUMEN DEL MATERIAL:\n" + sdata.summary;
+            var targetUser = lastUser;
+            thread = thread.map(function(m) { return m === targetUser ? Object.assign({}, m, { apiContent: summarizedContent }) : m; });
+          }
+        } catch (e) {}
+      }
+    }
+
     for (var i = 0; i < twinKeys.length; i++) {
       var key = twinKeys[i];
       if (i > 0) {
